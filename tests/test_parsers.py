@@ -26,6 +26,11 @@ def simple_file():
     return SimpleFileParser(filename=os.path.join(os.path.dirname(__file__), "data/pheweb-samples/has-fields-.txt"))
 
 
+def test_subclasses_get_registered():
+    # All new parser classes should be automagically added to a central registry
+    assert SimpleFileParser in parsers.all_parsers
+
+
 def test_tabix_mode_retrieves_data(simple_tabix):
     iterator = simple_tabix.fetch(1, 800_000, 900_000)
     assert isinstance(iterator, abc.Iterable), "returns an iterator"
