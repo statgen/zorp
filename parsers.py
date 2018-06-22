@@ -3,7 +3,9 @@ File format parsers
 """
 
 import abc
+import collections.abc
 import logging
+import subprocess
 import tempfile
 import typing
 
@@ -24,21 +26,12 @@ logger = logging.getLogger(__name__)
 all_parsers = []
 
 
-class BaseGWASMeta(type):
-    """
-    Metaclass coordinates a registry of known parsers
-    """
-    def __new__(cls, *args, **kwargs):
-        new_class = super(BaseGWASMeta, cls).__new__(cls, *args, **kwargs)
-        all_parsers.append(new_class)
-        return new_class
-
-
-class BaseGWASParser(metaclass=BaseGWASMeta):
+class BaseGWASParser(abc.ABC):
     def __init__(self,
                  filename: str=None,
                  source: typing.Iterable[str]=None,
-                 has_headers: bool=True,
+                 chrom_col: int=1,
+                 pos_col: int=2,
                  **kwargs):
         if filename is not None and source is not None:
             raise Exception("filename and source options are mutually exclusive")
@@ -47,15 +40,20 @@ class BaseGWASParser(metaclass=BaseGWASMeta):
         self.filename = filename
         self._iterator = source
 
+        # Options for column specification
+        self._chrom_col = chrom_col
+        self._pos_col = pos_col
+
         # Options for tabix region iteration
         self._tabix = None
 
-        # Filters and transforms
+        # Filters and transforms that should operate on each row
         self._filters = []
-        self._transforms = []  # TODO: Implement transforms
+        #self._transforms = []  # TODO: Implement transforms
 
     ######
     # Custom behavior that must be implemented in subclasses
+    @abc.abstractmethod
     def _parse_row(self, row: str) -> tuple:
         """Handle the logic of parsing data from the specific file format"""
         # TODO: Which columns? Do values require any cleanup, like chr/pos/ref/alt?
@@ -72,36 +70,45 @@ class BaseGWASParser(metaclass=BaseGWASMeta):
 
         if not self._tabix:
             # Allow repeatedly fetching from the same tabix file
+            #TODO: It is possible to iterate over all tabix contents using pysam; future
             self._tabix = pysam.TabixFile(self.filename)
 
         return self._make_generator(self._tabix.fetch(chr, start, end))
 
     def add_filter(self,
                    field_name: str,
-                   test_func: typing.Callable[[typing.Any, tuple], bool]) -> 'BaseGWASParser':
+                   match: typing.Union[typing.Any,
+                                       typing.Callable[[typing.Any, tuple], bool]]) -> 'BaseGWASParser':
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
+
+        `match` can be an arbitrary function (with arguments (value, row), or a single constant value that must
+        exactly match
         """
         # TODO: Validate that we are filtering a known field?
-        self._filters.append([field_name, test_func])
+        self._filters.append([
+            field_name,
+            match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match
+        ])
         return self
 
-    def sort(self, lazy: bool=True) -> 'BaseGWASParser':
+    def sort(self) -> 'BaseGWASParser':
         """
-        Sort the file provided, and return a new instance with that handle as the iterator
-        :param lazy: For large files, this will use a simple heuristic (smaller of first 10% or thousand lines)
-            to decide whether sorting is necessary.
+        Sort the file provided, and update the internal iterator
         """
-
         if self._iterator:
-            raise Exception("Sorting only available on files")
+            raise Exception("Sorting only available on unopened files")
 
-        # TODO: probably an instance method, not a class... and should check file isn't open yet, set its own iterator to file handle
-        with tempfile.TemporaryFile() as f:  # TODO: Sort, write, seek to 0
-            pass
+        # TODO: handle skipping headers when necessary
+        f = tempfile.TemporaryFile(mode='r+')
+        subprocess.check_call([
+            'sort',
+            self.filename,
+            '-k{chr},{chr}'.format(chr=self._chrom_col),
+            '-k{pos},{pos}n'.format(pos=self._pos_col)
+        ], stdout=f)
         f.seek(0)
-
-        raise NotImplementedError("Must implement sorting logic for this file type")
+        self._iterator = f
         return self
 
     ######
