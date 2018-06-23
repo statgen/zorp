@@ -1,29 +1,23 @@
 
 from collections import abc
-import collections
 import os
 
 import pytest
 
 import parsers
-
-
-class SimpleFileParser(parsers.BaseGWASParser):
-    __one_row__ = collections.namedtuple("gwas_data", ["chr", "pos", "ref", "alt", "pvalue"])
-
-    def _parse_row(self, row: str):
-        row = row.split("\t")
-        return self.__one_row__(row[0], row[1], None, None, None)
+import readers
 
 
 @pytest.fixture
 def simple_tabix_parser():
-    return SimpleFileParser(filename=os.path.join(os.path.dirname(__file__), "data/sample.gz"))
+    return readers.TabixReader(filename=os.path.join(os.path.dirname(__file__), "data/sample.gz"),
+                               parser=parsers.NamedFieldsParser(['chr', 'pos', 'ref', 'alt', 'pval']))
 
 
 @pytest.fixture
 def simple_file_parser():
-    return SimpleFileParser(filename=os.path.join(os.path.dirname(__file__), "data/pheweb-samples/has-fields-.txt"))
+    return readers.FileReader(filename=os.path.join(os.path.dirname(__file__), "data/pheweb-samples/has-fields-.txt"),
+                              parser=parsers.NamedFieldsParser(['chr', 'pos', 'ref', 'alt', 'pval']))
 
 
 def test_tabix_mode_retrieves_data(simple_tabix_parser):
@@ -72,21 +66,21 @@ def test_filter_criteria_with_value(simple_file_parser):
 
 def test_must_specify_filename_or_source():
     with pytest.raises(Exception):
-        SimpleFileParser(filename="anything", source=[])
+        readers.FileReader(filename="anything", source=[])
 
 
 def test_can_specify_iterable_as_source():
     # Any row-based iterable can serve as the source and will be parsed as expected
-    parser = SimpleFileParser(source=["X\t1\tA\tG"])
+    parser = readers.FileReader(source=["X\t1\tA\tG"])
     result = next(iter(parser))
     assert result[0] == "X"
 
 
 def test_sorting_stuff():
-    parser = SimpleFileParser(filename=os.path.join(os.path.dirname(__file__), "data/unsorted.txt"))
+    parser = readers.FileReader(filename=os.path.join(os.path.dirname(__file__), "data/unsorted.txt"))
     prev_chr = 0
     prev_pos = 0
-    for row in parser.sort():
+    for row in parser.sort(1, 2):
         assert int(row[0]) > prev_chr, "Chromosomes always increase"
         assert int(row[1]) > prev_pos, "Positions always increase"
 
