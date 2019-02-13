@@ -1,3 +1,0 @@
-tail -n +2 has-fields-.txt | sort -k1,1n -k2,2n | bgzip > sample.gz
-
-tabix sample.gz -s1 -b2 -e2

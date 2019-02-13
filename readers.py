@@ -1,50 +1,90 @@
 """
-File format parsers
+Reader objects that handle different types of data
 """
 import abc
 import collections.abc
 import gzip
 import logging
-import subprocess
-import tempfile
+import os
 import typing
 
 import pysam
 
+import exceptions
+import parsers
 
 logger = logging.getLogger(__name__)
-
-# TODO: What are some common operations we might want to perform on these files? (alignment across readers, standardization, etc)
-#   Ensure that base classes are provided to support this
 
 
 class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
+    # TODO: Add a mechanism to skip N rows on iteration, to handle headers vs data
     def __init__(self,
-                 filename: str=None,
-                 source: typing.Iterable[str]=None,
-                 parser: typing.Callable=None,
+                 filename: str = None,
+                 source: typing.Iterable[str] = None,
+                 parser: typing.Callable = None,
+                 skip_rows: int = 0,
+                 skip_errors: bool = False,
                  **kwargs):
         if filename is not None and source is not None:
+            # The source option is especially useful for unit testing: create a reader from any iterable
             raise Exception("filename and source options are mutually exclusive")
 
-        # Options for full iteration over file contents
-        self.filename = filename
-        self._iterator = source
+        # Options for full iteration over file contents (or manually provide a source, which is nice for unit testing)
+        self._filename = filename
+        self._source = source
 
         # Filters and transforms that should operate on each row
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
-        self._parser = parser or (lambda row: tuple(row.split(kwargs.get('delimiter', '\t'))))
+        self._parser = parser or parsers.TupleLineParser()
         self._filters = []
+
+        self._skip_rows = skip_rows
+
+        # If using "skip error" mode, store a record of which lines had a problem
+        self._skip_errors = skip_errors
+        self.errors = []
+
+    ######
+    # Internal helper methods; should not need to override below this line
+    def _apply_filters(self, parsed_row: tuple) -> bool:
+        """Determine whether a given row satisfies all of the applied filters"""
+        return all(test_func(parsed_row[position], parsed_row)
+                   for position, test_func in self._filters)
+
+    @abc.abstractmethod
+    def _create_iterator(self) -> typing.Iterable:
+        """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
+        raise NotImplementedError
+
+    def _make_generator(self, iterator) -> typing.Iterable[tuple]:
+        """
+        Process the output of an iterable before returning it. Omit rows that could not be processed, or that do not
+        match the filter criteria.
+        """
+        for row in iterator:
+            try:
+                parsed = self._parser(row)
+            except exceptions.ParseError as e:
+                self.errors.append(row)
+                if not self._skip_errors:
+                    raise e
+                continue
+
+            if not self._apply_filters(parsed):
+                continue
+            yield parsed
 
     ######
     # User-facing API
     def add_filter(self,
-                   field_name: str,
+                   field_name: typing.Union[int, str],
                    match: typing.Union[typing.Any,
                                        typing.Callable[[typing.Any, tuple], bool]]) -> 'BaseReader':
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
+
+        Since the parser should return a namedtuple, can access the field either by name, or by column number
 
         `match` specified the criterion used to test this field/row. It can be:
          - A value that will exactly match, or
@@ -53,92 +93,73 @@ class BaseReader(abc.ABC):
         if not hasattr(self._parser, 'fields'):
             raise Exception('The specified parser does not support accessing properties by name')
 
-        if field_name not in self._parser.fields:
-            raise Exception(f'Parser does not define a field named ${field_name}')
+        if isinstance(field_name, int):
+            position = field_name
+        elif field_name not in self._parser.fields:
+            raise Exception(f'Parser does not define a field named {field_name}')
+        else:
+            position = self._parser.fields.index(field_name)
 
         self._filters.append([
-            field_name,
+            position,
             match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match
         ])
         return self
-
-    ######
-    # Internal helper methods; should not need to override below this line
-    def _apply_filters(self, parsed_row: tuple) -> bool:
-        """Determine whether a given row satisfies all of the applied filters"""
-        return all(test_func(getattr(parsed_row, field_name), parsed_row)
-                   for field_name, test_func in self._filters)
-
-    @abc.abstractmethod
-    def _create_iterator(self) -> typing.Iterable:
-        """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
-        raise NotImplementedError
-
-    def _make_generator(self, iterator) -> typing.Iterable:
-        """Process the output of an iterable before returning it"""
-        for row in iterator:
-            parsed = self._parser(row)
-            if not self._apply_filters(parsed):
-                continue
-            yield parsed
 
     def __iter__(self):
         """
         The parser instance can be treated as an iterable
         """
-        if not self._iterator:
-            self._iterator = self._create_iterator()
+        # Reset the error list on any new iteration
+        self.errors = []
 
-        return self._make_generator(self._iterator)
+        if self._source:
+            return self._make_generator(self._source)
+        else:
+            iterator = self._create_iterator()
+            # Advance the iterator (if applicable) so that only data is returned (not headers)
+            for n in range(self._skip_rows):
+                next(iterator)
+            return self._make_generator(iterator)
 
 
-class FileReader(BaseReader):
+class TextFileReader(BaseReader):
     """Implement additional helper methods unique to working with uncompressed text files"""
-    def sort(self, primary_col, secondary_col, skip_rows=0) -> 'FileReader':
-        """
-        Sort the file provided, and update the internal iterator
-        """
-        if self._iterator:
-            raise Exception("Sorting only available on unopened files")
-
-        # TODO: handle skipping headers when necessary
-        f = tempfile.TemporaryFile(mode='r+')
-        subprocess.check_call([
-            'sort',
-            self.filename,
-            '-k{0},{0}'.format(primary_col),  # chr can be string (or not; we want some numeric sorting)
-            '-k{0},{0}n'.format(secondary_col)  # pos should be numeric
-        ], stdout=f)
-        f.seek(0)
-        self._iterator = f
-        return self
-
     def _create_iterator(self):
         """Open the file for parsing"""
-        with open(self.filename) as f:
+        with open(self._filename, 'r') as f:
             yield from f
 
 
 class TabixReader(BaseReader):
+    """
+    A reader that can handle generic gzipped data. If a `basefilename.tbi` index is present in the same folder,
+    it unlocks additional region-based fetch features.
+    """
     def __init__(self, *args, **kwargs):
         self._tabix = None
         super(TabixReader, self).__init__(*args, **kwargs)
+
+        filename = kwargs.get('filename')
+        self._has_index = bool(filename and os.path.isfile(f'{filename}.tbi'))
 
     def _create_iterator(self):
         """
         Return an iterator over all rows of the file
         """
-        with gzip.open(self.filename, 'rt') as f:
+        with gzip.open(self._filename, 'rt') as f:
             yield from f
 
-    def fetch(self, chr:str, start: int, end: int) -> typing.Iterable:
+    def fetch(self, chrom: str, start: int, end: int) -> typing.Iterable:
         """Fetch data from the file in a specific region, by wrapping tabix functionality to return parsed data."""
-        if not self.filename:
-            raise Exception("Must specify filename when using region-based fetch")
+        if not self._filename:
+            raise NotImplementedError("Must specify filename when using region-based fetch")
+        if not self._has_index:
+            raise FileNotFoundError("You must generate a tabix index before using region-based fetch")
 
         if not self._tabix:
             # Allow repeatedly fetching from the same tabix file
-            self._tabix = pysam.TabixFile(self.filename)
+            self._tabix = pysam.TabixFile(self._filename)
 
-        self._iterator = self._tabix.fetch(chr, start, end)
-        return self
+        iterator = self._tabix.fetch(chrom, start, end)
+        return self._make_generator(iterator)
