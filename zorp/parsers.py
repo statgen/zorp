@@ -6,7 +6,7 @@ import numbers
 import re
 import typing
 
-import exceptions
+from . import exceptions
 
 # TODO: Improve marker pattern
 MARKER_PATTERN = re.compile(r'([^:]+):([0-9]+)_([-ATCG.]+)/([-ATCG.*]+)')
@@ -43,7 +43,9 @@ class AbstractLineParser(abc.ABC):
     Abstract parser that returns a line of text into GWAS data
     This base class is reserved for future refactoring
     """
-    def __init__(self, *args, container: typing.Callable[..., tuple] = tuple, **kwargs):
+    def __init__(self, *args,
+                 container: typing.Callable[..., typing.Union[tuple, typing.NamedTuple]] = tuple,
+                 **kwargs):
         """
         :param container: A data structure (eg namedtuple) that will be populated with the parsed results
         """
@@ -55,7 +57,7 @@ class AbstractLineParser(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _process_values(self, values: typing.Iterable) -> tuple:
+    def _process_values(self, values: typing.Sequence) -> tuple:
         """Convert the raw field values into something useful. This includes field selection and type coercion."""
         pass
 
@@ -80,7 +82,7 @@ class TupleLineParser(AbstractLineParser):
     def _split_fields(self, row: str):
         return row.strip().split(self._delimiter)
 
-    def _process_values(self, values: typing.Iterable):
+    def _process_values(self, values: typing.Sequence):
         return values
 
     def _output_container(self, values):
@@ -94,7 +96,7 @@ class GenericGwasLineParser(TupleLineParser):
     Column numbers in the parser are 0-delimited
     """
     def __init__(self, *args,
-                 container: typing.Callable[..., tuple] = None,
+                 container: typing.Callable[..., tuple] = _basic_standard_container,
                  chr_col: int = None, pos_col: int = None, ref_col: int = None, alt_col: int = None,
                  marker_col: int = None, rsid_col: int = None,
                  pval_col: int = None,
@@ -106,7 +108,7 @@ class GenericGwasLineParser(TupleLineParser):
         super(GenericGwasLineParser, self).__init__(*args, **kwargs)
 
         # All GWAS parsers can specify
-        self._container = container or _basic_standard_container
+        self._container = container
 
         # The kwargs use human-friendly numbers. Internally, we store them as 0-based indices.
         def _human_to_zero(value):
@@ -137,7 +139,7 @@ class GenericGwasLineParser(TupleLineParser):
 
     @property
     def fields(self) -> typing.Container:
-        return self._container._fields
+        return self._container._fields  # type: ignore
 
     def _get_pval(self, pvalue):
         pvalue = float(pvalue)
@@ -165,6 +167,7 @@ class GenericGwasLineParser(TupleLineParser):
 
     def _output_container(self, values):
         return self._container(*values)
+
 
 # An example parser pre-configured for the LocusZoom standard file format
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,

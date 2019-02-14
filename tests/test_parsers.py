@@ -2,8 +2,10 @@
 
 import pytest
 
-import exceptions
-import parsers
+from zorp import (
+    exceptions,
+    parsers,
+)
 
 
 class TestTupleParser:
@@ -33,11 +35,11 @@ class TestStandardGwasParser:
     def test_enforces_pos_as_int(self):
         line = '1\tNOPE\tA\tC\t0.05'
         with pytest.raises(exceptions.LineParseException, match="invalid literal"):
-            output = parsers.standard_gwas_parser(line)
+            parsers.standard_gwas_parser(line)
 
     def test_enforces_readable_pvalue(self):
         line = '1\t100\tA\tC\tNOPE'
         with pytest.raises(exceptions.LineParseException, match="could not convert string to float"):
-            output = parsers.standard_gwas_parser(line)
+            parsers.standard_gwas_parser(line)
 
 # TODO: Add tests for the generic gwas parser (and all its various combinations of options)

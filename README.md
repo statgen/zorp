@@ -16,8 +16,7 @@ need to do some basic data preparation before using.
 
 ## Usage
 ```python
-import readers
-import parsers
+from zorp import readers, parsers
 
 # Create a reader instance
 reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser)
@@ -41,11 +40,11 @@ out_fn = reader.write('outfile.txt', ['chrom', 'pos', 'pvalue'], make_tabix=True
 
 ## Development
 
+To install dependencies and run in development mode:
+`pip install -e '.[test]'`
+
 To run unit tests, use
-`PYTHONPATH=. pytest tests --flake8`
 
-
-
-
-
-
+`flake8 zorp`
+`mypy zorp`
+`pytest tests --flake8 --mypy`

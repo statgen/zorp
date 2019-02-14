@@ -10,8 +10,11 @@ import typing
 
 import pysam
 
-import exceptions
-import parsers
+from . import (
+    exceptions,
+    parsers,
+)
+
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +24,7 @@ class BaseReader(abc.ABC):
     # TODO: Add a mechanism to skip N rows on iteration, to handle headers vs data
     def __init__(self,
                  source: typing.Any,
-                 parser: typing.Callable = parsers.TupleLineParser(),
+                 parser: typing.Union[typing.Callable] = parsers.TupleLineParser(),
                  skip_rows: int = 0,
                  skip_errors: bool = False,
                  max_errors: int = 100,
@@ -39,14 +42,14 @@ class BaseReader(abc.ABC):
         # Filters and transforms that should operate on each row
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
         self._parser = parser
-        self._filters = []
+        self._filters: list = []
 
         self._skip_rows = skip_rows
 
         # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
         self._max_errors = max_errors
-        self.errors = []
+        self.errors: list = []
 
     ######
     # Internal helper methods; should not need to override below this line
@@ -60,7 +63,7 @@ class BaseReader(abc.ABC):
         """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
         raise NotImplementedError
 
-    def _make_generator(self, iterator: typing.Iterable[str]) -> typing.Iterable[tuple]:
+    def _make_generator(self, iterator: typing.Iterator[str]) -> typing.Iterator[typing.Union[str, tuple]]:
         """
         Process the output of an iterable before returning it. Omit rows that could not be processed, or that do not
         match the filter criteria.
@@ -94,11 +97,11 @@ class BaseReader(abc.ABC):
         if isinstance(field_name, int):
             return field_name
         elif not hasattr(self._parser, 'fields'):
-            raise exceptions.ConfigurationException('The specified parser does not support accessing properties by name')
-        elif field_name not in self._parser.fields:
+            raise exceptions.ConfigurationException('Specified parser does not support accessing properties by name')
+        elif field_name not in self._parser.fields:  # type: ignore
             raise exceptions.ConfigurationException(f'Parser does not define a field named {field_name}')
         else:
-            return self._parser.fields.index(field_name)
+            return self._parser.fields.index(field_name)  # type: ignore
 
     ######
     # User-facing API
@@ -121,7 +124,7 @@ class BaseReader(abc.ABC):
         position = self._field_name_to_index(field_name)
         self._filters.append([
             position,
-            match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match
+            match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match  # type: ignore
         ])
         return self
 
@@ -154,7 +157,7 @@ class BaseReader(abc.ABC):
         with open(out_fn, 'w') as f:
             if has_headers:
                 f.write('#')
-                f.write(delimiter.join(columns))
+                f.write(delimiter.join(str(name) for name in columns))
                 f.write('\n')
             for row in self:
                 f.write(delimiter.join(str(row[i]) for i in column_indices))
@@ -165,9 +168,9 @@ class BaseReader(abc.ABC):
         else:
             return out_fn
 
-    def __iter__(self) -> typing.Iterable[tuple]:
+    def __iter__(self) -> typing.Iterator[typing.Union[str, tuple]]:
         """
-        The parser instance can be treated as an iterable
+        The parser instance can be treated as an iterable over raw or parsed lines (based on instance options)
         """
         # Reset the error list on any new iteration
         self.errors = []
@@ -211,7 +214,7 @@ class TabixReader(BaseReader):
     """
     def __init__(self, *args, **kwargs):
         super(TabixReader, self).__init__(*args, **kwargs)
-        self._tabix = None
+        self._tabix: pysam.TabixFile = None
         self._has_index = bool(self._source and os.path.isfile(f'{self._source}.tbi'))
 
     def _create_iterator(self):

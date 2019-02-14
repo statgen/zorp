@@ -6,9 +6,11 @@ import os
 
 import pytest
 
-import exceptions
-import parsers
-import readers
+from zorp import (
+    exceptions,
+    parsers,
+    readers,
+)
 
 
 @pytest.fixture
@@ -21,7 +23,7 @@ def simple_tabix_reader():
 @pytest.fixture
 def simple_file_reader():
     return readers.TextFileReader(os.path.join(os.path.dirname(__file__),
-                                                        "data/pheweb-samples/has-fields-.txt"),
+                                               "data/pheweb-samples/has-fields-.txt"),
                                   parser=parsers.standard_gwas_parser,
                                   skip_rows=1)
 
@@ -63,7 +65,6 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException):
             reader.add_filter("fake_field", "value")
 
-
     def test_can_write_output(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
                                         parser=parsers.standard_gwas_parser)
@@ -94,7 +95,7 @@ class TestIterableReader:
     def test_can_fail_on_first_error(self):
         reader = readers.IterableReader(['mwa', 'ha', 'ha'], parser=doomed_parser, skip_errors=False)
         with pytest.raises(exceptions.LineParseException):
-            results = list(reader)
+            list(reader)
 
     def test_can_track_errors(self):
         reader = readers.IterableReader(['mwa', 'ha', 'ha'], parser=doomed_parser, skip_errors=True, max_errors=10)
@@ -105,7 +106,7 @@ class TestIterableReader:
     def test_warns_if_file_is_unreadable(self):
         reader = readers.IterableReader(['mwa', 'ha', 'ha'], parser=doomed_parser, skip_errors=True, max_errors=2)
         with pytest.raises(exceptions.TooManyBadLinesException):
-            results = list(reader)
+            list(reader)
         assert len(reader.errors) == 2, "Reader gave up after two lines, but tracked the errors"
 
 

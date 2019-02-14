@@ -2,11 +2,9 @@
 Exceptions related to reading and parsing data
 """
 
-import typing
-
 
 class BaseZorpException(Exception):
-    DEFAULT_MESSAGE = None
+    DEFAULT_MESSAGE: str
 
     def __init__(self, message=None, *args):
         super(BaseZorpException, self).__init__(*args)
