@@ -136,7 +136,7 @@ class GenericGwasLineParser(TupleLineParser):
     #     return match.groups()
 
     @property
-    def fields(self):
+    def fields(self) -> typing.Container:
         return self._container._fields
 
     def _get_pval(self, pvalue):
@@ -159,11 +159,7 @@ class GenericGwasLineParser(TupleLineParser):
             pval = self._get_pval(pval)
             pos = int(pos)
         except Exception as e:
-            raise exceptions.ParseError('Value does not match the specified format')
-
-        # af = float(fields[self._af_col]) if self._af_col else None
-        # beta = float(fields[self._beta_col]) if self._beta_col else None
-        # stderr = float(fields[self._stderr_col]) if self._stderr_col else None
+            raise exceptions.LineParseException(str(e), line=values)
 
         return chrom, pos, ref, alt, pval
 

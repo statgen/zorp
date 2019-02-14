@@ -20,29 +20,32 @@ class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
     # TODO: Add a mechanism to skip N rows on iteration, to handle headers vs data
     def __init__(self,
-                 filename: str = None,
-                 source: typing.Iterable[str] = None,
-                 parser: typing.Callable = None,
+                 source: typing.Any,
+                 parser: typing.Callable = parsers.TupleLineParser(),
                  skip_rows: int = 0,
                  skip_errors: bool = False,
+                 max_errors: int = 100,
                  **kwargs):
-        if filename is not None and source is not None:
-            # The source option is especially useful for unit testing: create a reader from any iterable
-            raise Exception("filename and source options are mutually exclusive")
-
-        # Options for full iteration over file contents (or manually provide a source, which is nice for unit testing)
-        self._filename = filename
+        """
+        :param source: How to find the source data (implementation detail of the subclass)
+        :param parser: A callable that parses a line of text. If `None`, the reader will not attempt to parse.
+        :param skip_rows:
+        :param skip_errors:
+        :param max_errors:
+        :param kwargs:
+        """
         self._source = source
 
         # Filters and transforms that should operate on each row
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
-        self._parser = parser or parsers.TupleLineParser()
+        self._parser = parser
         self._filters = []
 
         self._skip_rows = skip_rows
 
-        # If using "skip error" mode, store a record of which lines had a problem
+        # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
+        self._max_errors = max_errors
         self.errors = []
 
     ######
@@ -53,27 +56,49 @@ class BaseReader(abc.ABC):
                    for position, test_func in self._filters)
 
     @abc.abstractmethod
-    def _create_iterator(self) -> typing.Iterable:
+    def _create_iterator(self) -> typing.Iterator[str]:
         """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
         raise NotImplementedError
 
-    def _make_generator(self, iterator) -> typing.Iterable[tuple]:
+    def _make_generator(self, iterator: typing.Iterable[str]) -> typing.Iterable[tuple]:
         """
         Process the output of an iterable before returning it. Omit rows that could not be processed, or that do not
         match the filter criteria.
         """
         for row in iterator:
-            try:
-                parsed = self._parser(row)
-            except exceptions.ParseError as e:
-                self.errors.append(row)
-                if not self._skip_errors:
-                    raise e
+            if not row:
+                # Skip blank lines (eg at end of file)
                 continue
 
-            if not self._apply_filters(parsed):
-                continue
-            yield parsed
+            if not self._parser:
+                yield row
+            else:
+                try:
+                    parsed = self._parser(row)
+                except exceptions.LineParseException as e:
+                    if not self._skip_errors:
+                        raise e
+                    self.errors.append((str(e), row))  # (message, raw_input)
+                    if len(self.errors) >= self._max_errors:
+                        raise exceptions.TooManyBadLinesException(error_list=self.errors)
+                    continue
+
+                if not self._apply_filters(parsed):
+                    continue
+                yield parsed
+
+    def _field_name_to_index(self, field_name: typing.Union[int, str]) -> int:
+        """
+        Convert between tuple indices (how data is stored) and human-friendly field names as provided by the parser
+        """
+        if isinstance(field_name, int):
+            return field_name
+        elif not hasattr(self._parser, 'fields'):
+            raise exceptions.ConfigurationException('The specified parser does not support accessing properties by name')
+        elif field_name not in self._parser.fields:
+            raise exceptions.ConfigurationException(f'Parser does not define a field named {field_name}')
+        else:
+            return self._parser.fields.index(field_name)
 
     ######
     # User-facing API
@@ -90,76 +115,120 @@ class BaseReader(abc.ABC):
          - A value that will exactly match, or
          - A function that specifies whether to accept this row. Method signature: (val, row) => bool
         """
-        if not hasattr(self._parser, 'fields'):
-            raise Exception('The specified parser does not support accessing properties by name')
+        if not self._parser:
+            raise exceptions.ConfigurationException("Reader must specify a parser in order to use filtering features.")
 
-        if isinstance(field_name, int):
-            position = field_name
-        elif field_name not in self._parser.fields:
-            raise Exception(f'Parser does not define a field named {field_name}')
-        else:
-            position = self._parser.fields.index(field_name)
-
+        position = self._field_name_to_index(field_name)
         self._filters.append([
             position,
             match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match
         ])
         return self
 
-    def __iter__(self):
+    def write(self,
+              out_fn: str,
+              columns: typing.List[typing.Union[int, str]],
+              delimiter: str = '\t',
+              make_tabix: bool = True) -> str:
+        """
+        Write an output file with the specified columns. Column names must match the field names or tuple indices
+        used by your parser.
+
+        This method is useful when you want to save your filtered results for later, or normalize different input
+        formats into a single predictable output format.
+
+        TODO: In the initial version, we hardcode a preset mode of "vcf" for tabix indexing.
+            There's no good parser-agnostic way to set the tabix options, so we may just have to proxy the pysam kwargs
+
+        # TODO: How should we represent missing or invalid data (like pvalue = 'NA')?
+        # TODO: This isn't a universal converter, eg the column headers are still dictated by the parser (not the user)
+        """
+        if make_tabix:
+            delimiter = '\t'
+
+        if isinstance(self._source, str) and out_fn == self._source:
+            raise exceptions.ConfigurationException('Writer cannot overwrite input file')
+
+        has_headers = any(isinstance(field, str) for field in columns)
+        column_indices = [self._field_name_to_index(field) for field in columns]
+        with open(out_fn, 'w') as f:
+            if has_headers:
+                f.write('#')
+                f.write(delimiter.join(columns))
+                f.write('\n')
+            for row in self:
+                f.write(delimiter.join(str(row[i]) for i in column_indices))
+                f.write('\n')
+
+        if make_tabix:
+            return pysam.tabix_index(out_fn, force=True, preset='vcf')
+        else:
+            return out_fn
+
+    def __iter__(self) -> typing.Iterable[tuple]:
         """
         The parser instance can be treated as an iterable
         """
         # Reset the error list on any new iteration
         self.errors = []
 
-        if self._source:
-            return self._make_generator(self._source)
-        else:
-            iterator = self._create_iterator()
-            # Advance the iterator (if applicable) so that only data is returned (not headers)
-            for n in range(self._skip_rows):
-                next(iterator)
-            return self._make_generator(iterator)
+        iterator = self._create_iterator()
+        # Advance the iterator (if applicable) so that only data is returned (not headers)
+        for n in range(self._skip_rows):
+            next(iterator)
+        return self._make_generator(iterator)
+
+
+class IterableReader(BaseReader):
+    """
+    Read data from an externally provided iterable object (like a list)
+
+    This can be used as an adapter to wrap an external source in a standard interface, and is also useful for
+        unit testing.
+    """
+    def __init__(self, *args, **kwargs):
+        super(IterableReader, self).__init__(*args, **kwargs)
+
+    def _create_iterator(self):
+        return self._source
 
 
 class TextFileReader(BaseReader):
     """Implement additional helper methods unique to working with uncompressed text files"""
+    def __init__(self, *args, **kwargs):
+        super(TextFileReader, self).__init__(*args, **kwargs)
+
     def _create_iterator(self):
         """Open the file for parsing"""
-        with open(self._filename, 'r') as f:
+        with open(self._source, 'r') as f:
             yield from f
 
 
 class TabixReader(BaseReader):
     """
-    A reader that can handle generic gzipped data. If a `basefilename.tbi` index is present in the same folder,
+    A reader that can handle any gzipped text file. If a `filename.tbi` index is present in the same folder,
     it unlocks additional region-based fetch features.
     """
     def __init__(self, *args, **kwargs):
-        self._tabix = None
         super(TabixReader, self).__init__(*args, **kwargs)
-
-        filename = kwargs.get('filename')
-        self._has_index = bool(filename and os.path.isfile(f'{filename}.tbi'))
+        self._tabix = None
+        self._has_index = bool(self._source and os.path.isfile(f'{self._source}.tbi'))
 
     def _create_iterator(self):
         """
         Return an iterator over all rows of the file
         """
-        with gzip.open(self._filename, 'rt') as f:
+        with gzip.open(self._source, 'rt') as f:
             yield from f
 
     def fetch(self, chrom: str, start: int, end: int) -> typing.Iterable:
         """Fetch data from the file in a specific region, by wrapping tabix functionality to return parsed data."""
-        if not self._filename:
-            raise NotImplementedError("Must specify filename when using region-based fetch")
         if not self._has_index:
             raise FileNotFoundError("You must generate a tabix index before using region-based fetch")
 
         if not self._tabix:
             # Allow repeatedly fetching from the same tabix file
-            self._tabix = pysam.TabixFile(self._filename)
+            self._tabix = pysam.TabixFile(self._source)
 
         iterator = self._tabix.fetch(chrom, start, end)
         return self._make_generator(iterator)
