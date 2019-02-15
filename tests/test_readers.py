@@ -40,7 +40,9 @@ class TestIterableReader:
         result = next(iter(reader))
         assert result[0] == "X"
 
-    def test_skips_empty_rows(self):
+    #####
+    # Special cases: Things we should not try to parse
+    def test_skips_empty_rows_padding_file(self):
         reader = readers.IterableReader(["", ""])
         results = list(reader)
         assert len(results) == 0, "Skipped empty lines"
@@ -50,6 +52,39 @@ class TestIterableReader:
         results = list(reader)
         assert results == ["walrus", "carpenter"], "Returns unparsed data"
 
+    #####
+    # Convenience method: Automatic header detection
+    def test_can_find_headers(self):
+        reader = readers.IterableReader(["#Comment line", '#Header\tLabels', 'X\t100'], parser=None)
+        n, content = reader.get_headers(delimiter='\t')
+        assert n == 2, 'Skipped two header rows'
+        assert content == '#Header\tLabels', 'Found correct header row'
+
+    def test_handles_lack_of_headers(self):
+        reader = readers.IterableReader(['X\t100', 'X\t101'], parser=None)
+        n, content = reader.get_headers(delimiter='\t')
+        assert n == 0, 'Skipped two header rows'
+        assert content is None, 'Found correct header row'
+
+    def test_stops_header_search_after_limit(self):
+        reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
+        with pytest.raises(exceptions.SnifferException):
+            reader.get_headers(delimiter='\t', max_check=1)
+
+    def test_no_headers_in_short_file(self):
+        reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
+        with pytest.raises(exceptions.SnifferException):
+            reader.get_headers(delimiter='\t')
+
+    def test_can_autodetect_skip_rows(self):
+        reader = readers.IterableReader(["#Comment line", '#Header\tLabels', 'X\t100'],
+                                        parser=parsers.TupleLineParser(),
+                                        skip_rows=None)
+        data = next(iter(reader))
+        assert data == ('X', '100')
+
+    ######
+    # Filters data
     def test_unparsed_mode_cannot_filter(self):
         reader = readers.IterableReader([], parser=None)
         with pytest.raises(exceptions.ConfigurationException):
@@ -65,6 +100,8 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException):
             reader.add_filter("fake_field", "value")
 
+    ######
+    # Writes files
     def test_can_write_output(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
                                         parser=parsers.standard_gwas_parser)
@@ -92,6 +129,8 @@ class TestIterableReader:
         check_output = readers.TabixReader(out_fn)
         assert len(list(check_output.fetch('1', 1, 300))) == 1, 'Output file can be read with tabix features'
 
+    ######
+    # Error handling
     def test_can_fail_on_first_error(self):
         reader = readers.IterableReader(['mwa', 'ha', 'ha'], parser=doomed_parser, skip_errors=False)
         with pytest.raises(exceptions.LineParseException):

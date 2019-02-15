@@ -18,6 +18,10 @@ class ConfigurationException(BaseZorpException):
     DEFAULT_MESSAGE = "Invalid option specified"
 
 
+class SnifferException(BaseZorpException):
+    DEFAULT_MESSAGE = 'Could not auto-detect file format'
+
+
 class LineParseException(BaseZorpException):
     """An error occurred while parsing a single line. Capture the data that failed to parse for context."""
     DEFAULT_MESSAGE = "Could not parse specified line"

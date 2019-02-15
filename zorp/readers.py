@@ -13,6 +13,7 @@ import pysam
 from . import (
     exceptions,
     parsers,
+    sniffers
 )
 
 
@@ -44,12 +45,17 @@ class BaseReader(abc.ABC):
         self._parser = parser
         self._filters: list = []
 
-        self._skip_rows = skip_rows
-
         # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
         self._max_errors = max_errors
         self.errors: list = []
+
+        # Ideally the user will specify how many header rows to skip, but if not, try to guess
+        if skip_rows is not None:
+            self._skip_rows = skip_rows
+        else:
+            n, _ = self.get_headers()
+            self._skip_rows = n
 
     ######
     # Internal helper methods; should not need to override below this line
@@ -168,6 +174,26 @@ class BaseReader(abc.ABC):
         else:
             return out_fn
 
+    def get_headers(self, comment_char: str = "#", delimiter=None, max_check=100) \
+            -> typing.Tuple[int, typing.Union[str, None]]:
+        """Identify the number of header rows, and the content of the one likely to contain column headers"""
+        iterator = self._create_iterator()  # unprocessed data!
+
+        delimiter = delimiter or hasattr(self._parser, '_delimiter') and self._parser._delimiter  # type: ignore
+        if not delimiter:
+            raise exceptions.ConfigurationException('Could not determine how to split a row')
+
+        last_row = None
+        for i, row in enumerate(iterator):
+            # TODO: Move some of this method to parser class to keep the reader domain-agnostic
+            if not sniffers.is_header(row, comment_char=comment_char, delimiter=delimiter):
+                return i, last_row
+            elif i > max_check:
+                raise exceptions.SnifferException(f'No headers found after limit of {max_check} rows')
+            last_row = row
+
+        raise exceptions.SnifferException('No headers found after searching entire file')
+
     def __iter__(self) -> typing.Iterator[typing.Union[str, tuple]]:
         """
         The parser instance can be treated as an iterable over raw or parsed lines (based on instance options)
@@ -193,7 +219,7 @@ class IterableReader(BaseReader):
         super(IterableReader, self).__init__(*args, **kwargs)
 
     def _create_iterator(self):
-        return self._source
+        return iter(self._source)
 
 
 class TextFileReader(BaseReader):
