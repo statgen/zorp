@@ -6,4 +6,5 @@ __version_info__ = tuple(LooseVersion(__version__).version)
 __all__ = [
     'parsers',
     'readers',
+    'sniffers',
 ]

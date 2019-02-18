@@ -106,7 +106,7 @@ class TestIterableReader:
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
                                         parser=parsers.standard_gwas_parser)
         expected_fn = tmpdir / 'test.txt'
-        out_fn = reader.write(expected_fn, ['chrom'], make_tabix=False)
+        out_fn = reader.write(expected_fn, columns=['chrom'], make_tabix=False)
 
         assert expected_fn == out_fn
         assert os.path.isfile(out_fn), "Output filename exists"
@@ -117,7 +117,7 @@ class TestIterableReader:
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
                                         parser=parsers.standard_gwas_parser)
         expected_fn = tmpdir / 'test.gz'
-        out_fn = reader.write(str(expected_fn), ['chrom', 'pos'], make_tabix=True)
+        out_fn = reader.write(str(expected_fn), columns=['chrom', 'pos'], make_tabix=True)
 
         assert expected_fn != out_fn
         assert out_fn.endswith('.gz')
@@ -128,6 +128,15 @@ class TestIterableReader:
         # Now try to use the file that was written
         check_output = readers.TabixReader(out_fn)
         assert len(list(check_output.fetch('1', 1, 300))) == 1, 'Output file can be read with tabix features'
+
+    def test_writer_defaults_to_parser_columns(self, tmpdir):
+        reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
+                                        parser=parsers.standard_gwas_parser)
+        expected_fn = tmpdir / 'test.txt'
+        out_fn = reader.write(expected_fn)
+
+        with open(out_fn, 'r') as f:
+            assert f.readline() == '#chrom\tpos\tref\talt\tpvalue\n'
 
     ######
     # Error handling
@@ -195,7 +204,7 @@ class TestFileReader:
 
     def test_writer_protects_from_overwriting(self, simple_file_reader):
         with pytest.raises(exceptions.ConfigurationException):
-            simple_file_reader.write(simple_file_reader._source, [])
+            simple_file_reader.write(simple_file_reader._source, columns=[])
 
 
 class TestFiltering:

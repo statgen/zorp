@@ -6,7 +6,7 @@ import collections.abc
 import gzip
 import logging
 import os
-import typing
+import typing as ty
 
 import pysam
 
@@ -24,9 +24,9 @@ class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
     # TODO: Add a mechanism to skip N rows on iteration, to handle headers vs data
     def __init__(self,
-                 source: typing.Any,
-                 parser: typing.Union[typing.Callable] = parsers.TupleLineParser(),
-                 skip_rows: int = 0,
+                 source: ty.Any,
+                 parser: ty.Union[ty.Callable, None] = parsers.TupleLineParser(),
+                 skip_rows: ty.Union[int, None] = 0,
                  skip_errors: bool = False,
                  max_errors: int = 100,
                  **kwargs):
@@ -65,16 +65,17 @@ class BaseReader(abc.ABC):
                    for position, test_func in self._filters)
 
     @abc.abstractmethod
-    def _create_iterator(self) -> typing.Iterator[str]:
+    def _create_iterator(self) -> ty.Iterator[str]:
         """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
         raise NotImplementedError
 
-    def _make_generator(self, iterator: typing.Iterator[str]) -> typing.Iterator[typing.Union[str, tuple]]:
+    def _make_generator(self, iterator: ty.Iterator[str]) -> ty.Iterator[ty.Union[str, tuple]]:
         """
-        Process the output of an iterable before returning it. Omit rows that could not be processed, or that do not
-        match the filter criteria.
+        Process the output of an iterable before returning it. In the usual case where a parser is provided,
+            this will parse the row, apply filter criteria, and exclude any rows with errors (though errors will be
+            available for inspection later)
         """
-        for row in iterator:
+        for i, row in enumerate(iterator):
             if not row:
                 # Skip blank lines (eg at end of file)
                 continue
@@ -87,7 +88,7 @@ class BaseReader(abc.ABC):
                 except exceptions.LineParseException as e:
                     if not self._skip_errors:
                         raise e
-                    self.errors.append((str(e), row))  # (message, raw_input)
+                    self.errors.append((i + self._skip_rows + 1, str(e), row))  # (human_line, message, raw_input)
                     if len(self.errors) >= self._max_errors:
                         raise exceptions.TooManyBadLinesException(error_list=self.errors)
                     continue
@@ -96,7 +97,7 @@ class BaseReader(abc.ABC):
                     continue
                 yield parsed
 
-    def _field_name_to_index(self, field_name: typing.Union[int, str]) -> int:
+    def _field_name_to_index(self, field_name: ty.Union[int, str]) -> int:
         """
         Convert between tuple indices (how data is stored) and human-friendly field names as provided by the parser
         """
@@ -112,9 +113,9 @@ class BaseReader(abc.ABC):
     ######
     # User-facing API
     def add_filter(self,
-                   field_name: typing.Union[int, str],
-                   match: typing.Union[typing.Any,
-                                       typing.Callable[[typing.Any, tuple], bool]]) -> 'BaseReader':
+                   field_name: ty.Union[int, str],
+                   match: ty.Union[ty.Any,
+                                   ty.Callable[[ty.Any, tuple], bool]]) -> 'BaseReader':
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
 
@@ -135,10 +136,10 @@ class BaseReader(abc.ABC):
         return self
 
     def write(self,
-              out_fn: str,
-              columns: typing.List[typing.Union[int, str]],
+              out_fn: str, *,
+              columns: ty.List[ty.Union[int, str]] = None,
               delimiter: str = '\t',
-              make_tabix: bool = True) -> str:
+              make_tabix: bool = False):
         """
         Write an output file with the specified columns. Column names must match the field names or tuple indices
         used by your parser.
@@ -158,6 +159,12 @@ class BaseReader(abc.ABC):
         if isinstance(self._source, str) and out_fn == self._source:
             raise exceptions.ConfigurationException('Writer cannot overwrite input file')
 
+        if columns is None:
+            if hasattr(self._parser, 'fields'):
+                columns = self._parser.fields  # type: ignore
+            else:
+                raise exceptions.ConfigurationException('Must provide column names to write')
+
         has_headers = any(isinstance(field, str) for field in columns)
         column_indices = [self._field_name_to_index(field) for field in columns]
         with open(out_fn, 'w') as f:
@@ -175,7 +182,7 @@ class BaseReader(abc.ABC):
             return out_fn
 
     def get_headers(self, comment_char: str = "#", delimiter=None, max_check=100) \
-            -> typing.Tuple[int, typing.Union[str, None]]:
+            -> ty.Tuple[int, ty.Union[str, None]]:
         """Identify the number of header rows, and the content of the one likely to contain column headers"""
         iterator = self._create_iterator()  # unprocessed data!
 
@@ -194,9 +201,9 @@ class BaseReader(abc.ABC):
 
         raise exceptions.SnifferException('No headers found after searching entire file')
 
-    def __iter__(self) -> typing.Iterator[typing.Union[str, tuple]]:
+    def __iter__(self) -> ty.Iterator[ty.Union[str, tuple]]:
         """
-        The parser instance can be treated as an iterable over raw or parsed lines (based on instance options)
+        The parser instance can be treated as an iterable over raw or parsed lines (based on options)
         """
         # Reset the error list on any new iteration
         self.errors = []
@@ -210,14 +217,11 @@ class BaseReader(abc.ABC):
 
 class IterableReader(BaseReader):
     """
-    Read data from an externally provided iterable object (like a list)
+    Read data from an externally provided iterable object (like sys.stdin, or a list)
 
     This can be used as an adapter to wrap an external source in a standard interface, and is also useful for
         unit testing.
     """
-    def __init__(self, *args, **kwargs):
-        super(IterableReader, self).__init__(*args, **kwargs)
-
     def _create_iterator(self):
         return iter(self._source)
 
@@ -250,7 +254,7 @@ class TabixReader(BaseReader):
         with gzip.open(self._source, 'rt') as f:
             yield from f
 
-    def fetch(self, chrom: str, start: int, end: int) -> typing.Iterable:
+    def fetch(self, chrom: str, start: int, end: int) -> ty.Iterable:
         """Fetch data from the file in a specific region, by wrapping tabix functionality to return parsed data."""
         if not self._has_index:
             raise FileNotFoundError("You must generate a tabix index before using region-based fetch")

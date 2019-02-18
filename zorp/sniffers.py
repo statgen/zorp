@@ -7,9 +7,7 @@ Auto-detect the appropriate options for parsing a GWAS file
 # What are the headers names?
 # Get columns for chrom/pos/ref/alt
 
-# import typing
-
-MISSING_VALUES = frozenset(['', '.', 'NA', 'N/A', 'n/a', 'nan', '-nan', 'NaN', '-NaN', 'null', 'NULL'])
+from .const import MISSING_VALUES
 
 
 def is_numeric(val: str) -> bool:

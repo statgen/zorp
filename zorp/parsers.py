@@ -4,15 +4,16 @@ Parsers: handle the act of reading one entity (such as line)
 import abc
 import numbers
 import re
-import typing
+import typing as ty
 
+from .const import MISSING_VALUES
 from . import exceptions
 
 # TODO: Improve marker pattern
 MARKER_PATTERN = re.compile(r'([^:]+):([0-9]+)_([-ATCG.]+)/([-ATCG.*]+)')
 
 
-class _basic_standard_container(typing.NamedTuple):
+class _basic_standard_container(ty.NamedTuple):
     """Store GWAS results in a predictable format, with only the minimum fields"""
     chrom: str
     pos: int
@@ -21,7 +22,7 @@ class _basic_standard_container(typing.NamedTuple):
     pvalue: numbers.Number
 
 
-class _extended_standard_container(typing.NamedTuple):
+class _extended_standard_container(ty.NamedTuple):
     """Store GWAS results in a predictable format, with a variety of added fields"""
     # Required fields
     chrom: str
@@ -44,7 +45,7 @@ class AbstractLineParser(abc.ABC):
     This base class is reserved for future refactoring
     """
     def __init__(self, *args,
-                 container: typing.Callable[..., typing.Union[tuple, typing.NamedTuple]] = tuple,
+                 container: ty.Callable[..., ty.Union[tuple, ty.NamedTuple]] = tuple,
                  **kwargs):
         """
         :param container: A data structure (eg namedtuple) that will be populated with the parsed results
@@ -57,32 +58,35 @@ class AbstractLineParser(abc.ABC):
         pass
 
     @abc.abstractmethod
-    def _process_values(self, values: typing.Sequence) -> tuple:
+    def _process_values(self, values: ty.Sequence) -> tuple:
         """Convert the raw field values into something useful. This includes field selection and type coercion."""
         pass
 
     @abc.abstractmethod
-    def _output_container(self, values: typing.Iterable):
+    def _output_container(self, values: ty.Iterable):
         """Populate the output container with the extracted results"""
         pass
 
     def __call__(self, row: str) -> tuple:
-        fields = self._split_fields(row)
-        values = self._process_values(fields)
-        container = self._output_container(values)
+        try:
+            fields = self._split_fields(row)
+            values = self._process_values(fields)
+            container = self._output_container(values)
+        except Exception as e:
+            raise exceptions.LineParseException(str(e), line=row)
         return container
 
 
 class TupleLineParser(AbstractLineParser):
     """Parse a line of text and return a tuple of the fields. Performs no type coercion"""
-    def __init__(self, *args, container: typing.Callable = tuple, delimiter='\t', **kwargs):
+    def __init__(self, *args, container: ty.Callable = tuple, delimiter='\t', **kwargs):
         super(TupleLineParser, self).__init__(*args, container=container, **kwargs)
         self._delimiter = delimiter
 
     def _split_fields(self, row: str):
         return row.strip().split(self._delimiter)
 
-    def _process_values(self, values: typing.Sequence):
+    def _process_values(self, values: ty.Sequence):
         return values
 
     def _output_container(self, values):
@@ -93,10 +97,10 @@ class GenericGwasLineParser(TupleLineParser):
     """
     A simple parser that extracts GWAS information from a flexible file format.
 
-    Column numbers in the parser are 0-delimited
+    Constructor expects human-friendly column numbers (first = column 1)
     """
     def __init__(self, *args,
-                 container: typing.Callable[..., tuple] = _basic_standard_container,
+                 container: ty.Callable[..., tuple] = _basic_standard_container,
                  chr_col: int = None, pos_col: int = None, ref_col: int = None, alt_col: int = None,
                  marker_col: int = None, rsid_col: int = None,
                  pval_col: int = None,
@@ -138,16 +142,18 @@ class GenericGwasLineParser(TupleLineParser):
     #     return match.groups()
 
     @property
-    def fields(self) -> typing.Container:
+    def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore
 
     def _get_pval(self, pvalue):
+        if pvalue in MISSING_VALUES:
+            return None
         pvalue = float(pvalue)
         if self._is_log_pval:
             pvalue = 10 ** -pvalue
         return pvalue
 
-    def _process_values(self, values: typing.Sequence):
+    def _process_values(self, values: ty.Sequence):
         # Fetch values
         chrom = values[self._chr_col]
         pos = values[self._pos_col]
