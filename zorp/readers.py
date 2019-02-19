@@ -147,6 +147,8 @@ class BaseReader(abc.ABC):
         This method is useful when you want to save your filtered results for later, or normalize different input
         formats into a single predictable output format.
 
+        FIXME: In tabix mode, out_fn != result_fn . That is... just needlessly confusing.
+
         TODO: In the initial version, we hardcode a preset mode of "vcf" for tabix indexing.
             There's no good parser-agnostic way to set the tabix options, so we may just have to proxy the pysam kwargs
 

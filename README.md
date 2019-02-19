@@ -19,22 +19,28 @@ need to do some basic data preparation before using.
 from zorp import readers, parsers
 
 # Create a reader instance
-reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser)
+reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser, skip_errors=True)
 
 # We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
 reader.add_filter('chrom', '19')
 reader.add_filter('pvalue', lambda val, line: val < 5e-8)
 
-# Tabix files support iterating over all or part of the file
-for row in reader.fetch('X', 500_000, 1_000_000):
-    print(row)
-
 # Iteration returns tuples (or namedtuples) of cleaned, parsed data
 for row in reader:
     print(row.chrom)
 
-# Write a compressed, tabix-indexed file containing the subset of variants of interest, in the parser's normalized format
-out_fn = reader.write('outfile.txt', ['chrom', 'pos', 'pvalue'], make_tabix=True)
+# Tabix files support iterating over all or part of the file
+for row in reader.fetch('X', 500_000, 1_000_000):
+    print(row)
+
+# Write a compressed, tabix-indexed file containing the subset of variants that match filters, choosing only specific 
+#   columns. The data written out will be cleaned and standardized by the parser into a predictable form. 
+out_fn = reader.write('outfile.txt', columns=['chrom', 'pos', 'pvalue'], make_tabix=True)
+
+# Real data is often messy. If a line fails to parse, the problem will be recorded.
+for line, message, raw_line in reader.errors:
+    print('Line {} failed to parse: {}'.format(line, message))
+
 ```
 
 

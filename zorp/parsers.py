@@ -177,5 +177,5 @@ class GenericGwasLineParser(TupleLineParser):
 
 # An example parser pre-configured for the LocusZoom standard file format
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                             pval_col=5, is_log_pval=True,
+                                             pval_col=5, is_log_pval=False,
                                              delimiter='\t')

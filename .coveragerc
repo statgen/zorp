@@ -6,6 +6,7 @@ exclude_lines =
 
 omit =
     *env*
+    bin*
 
 [run]
 omit =

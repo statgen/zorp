@@ -30,7 +30,7 @@ class TestStandardGwasParser:
         assert output.pos == 100
         assert output.ref == 'A'
         assert output.alt == 'C'
-        assert output.pvalue == 0.8912509381337456  # standard format provides logpvalues!
+        assert output.pvalue == 0.05
 
     def test_enforces_pos_as_int(self):
         line = '1\tNOPE\tA\tC\t0.05'
@@ -41,5 +41,18 @@ class TestStandardGwasParser:
         line = '1\t100\tA\tC\tNOPE'
         with pytest.raises(exceptions.LineParseException, match="could not convert string to float"):
             parsers.standard_gwas_parser(line)
+
+    def test_handles_missing_pvalues(self):
+        line = '1\t100\tA\tC\tNA'
+        p = parsers.standard_gwas_parser(line)
+        assert p.pvalue is None, "Fills placeholder values with python None"
+
+    def test_can_convert_to_log(self):
+        line = '1\t100\tA\tC\t1'
+        special_parser = parsers.GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                                       pval_col=5, is_log_pval=True,
+                                                       delimiter='\t')
+        p = special_parser(line)
+        assert p.pvalue == 0.1, 'Converts -log to pvalue'
 
 # TODO: Add tests for the generic gwas parser (and all its various combinations of options)
