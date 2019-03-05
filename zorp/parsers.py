@@ -21,6 +21,11 @@ class _basic_standard_container(ty.NamedTuple):
     alt: str
     pvalue: numbers.Number
 
+    @property
+    def pval(self) -> numbers.Number:
+        """A common field name alias"""
+        return self.pvalue
+
 
 class _extended_standard_container(ty.NamedTuple):
     """Store GWAS results in a predictable format, with a variety of added fields"""
@@ -37,6 +42,11 @@ class _extended_standard_container(ty.NamedTuple):
     stderr: float
     marker: str
     rsid: str
+
+    @property
+    def pval(self) -> numbers.Number:
+        """A common field name alias"""
+        return self.pvalue
 
 
 class AbstractLineParser(abc.ABC):

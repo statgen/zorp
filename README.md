@@ -19,7 +19,7 @@ need to do some basic data preparation before using.
 from zorp import readers, parsers
 
 # Create a reader instance
-reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser, skip_errors=True)
+reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser, skip_rows=1, skip_errors=True)
 
 # We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
 reader.add_filter('chrom', '19')
@@ -38,8 +38,8 @@ for row in reader.fetch('X', 500_000, 1_000_000):
 out_fn = reader.write('outfile.txt', columns=['chrom', 'pos', 'pvalue'], make_tabix=True)
 
 # Real data is often messy. If a line fails to parse, the problem will be recorded.
-for line, message, raw_line in reader.errors:
-    print('Line {} failed to parse: {}'.format(line, message))
+for number, message, raw_line in reader.errors:
+    print('Line {} failed to parse: {}'.format(number, message))
 
 ```
 
@@ -53,4 +53,4 @@ To run unit tests, use
 
 `flake8 zorp`
 `mypy zorp`
-`pytest tests --flake8 --mypy`
+`pytest tests/`
