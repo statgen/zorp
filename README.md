@@ -6,7 +6,7 @@ different sources.
 
 - Provide a single unified interface to read text, gzip, or tabixed data
 - Separation of concerns between reading and parsing (with parsers that can handle the most common file formats)
-- Includes helpers to auto-detect data format, filter for variants of interest, 
+- Includes helpers to auto-detect data format and filter for variants of interest 
 
 ## Why not?
 ZORP provides a high level abstraction. This means that it is convenient, at the expense of speed.
@@ -15,6 +15,7 @@ For GWAS files, ZORP does not sort the data for you, because doing so in python 
 need to do some basic data preparation before using.
 
 ## Usage
+### Python
 ```python
 from zorp import readers, parsers
 
@@ -34,7 +35,7 @@ for row in reader.fetch('X', 500_000, 1_000_000):
     print(row)
 
 # Write a compressed, tabix-indexed file containing the subset of variants that match filters, choosing only specific 
-#   columns. The data written out will be cleaned and standardized by the parser into a predictable form. 
+#   columns. The data written out will be cleaned and standardized by the parser into a well-defined format. 
 out_fn = reader.write('outfile.txt', columns=['chrom', 'pos', 'pvalue'], make_tabix=True)
 
 # Real data is often messy. If a line fails to parse, the problem will be recorded.
@@ -43,14 +44,20 @@ for number, message, raw_line in reader.errors:
 
 ```
 
+### Command line file conversion
+The file conversion feature of zorp is also available as a command line utility. See `zorp-convert --help` for details.
+
 
 ## Development
 
 To install dependencies and run in development mode:
+
 `pip install -e '.[test]'`
 
 To run unit tests, use
 
-`flake8 zorp`
-`mypy zorp`
-`pytest tests/`
+```bash
+$ flake8 zorp
+$ mypy zorp
+$ pytest tests/
+```

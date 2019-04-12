@@ -156,6 +156,7 @@ class GenericGwasLineParser(TupleLineParser):
         return self._container._fields  # type: ignore
 
     def _get_pval(self, pvalue):
+        # TODO: Use utility function
         if pvalue in MISSING_VALUES:
             return None
         pvalue = float(pvalue)

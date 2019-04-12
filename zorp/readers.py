@@ -13,7 +13,6 @@ import pysam
 from . import (
     exceptions,
     parsers,
-    sniffers
 )
 
 
@@ -51,11 +50,9 @@ class BaseReader(abc.ABC):
         self.errors: list = []
 
         # Ideally the user will specify how many header rows to skip, but if not, try to guess
-        if skip_rows is not None:
-            self._skip_rows = skip_rows
-        else:
-            n, _ = self.get_headers()
-            self._skip_rows = n
+        # TODO: move skip rows detection elsewhere
+        self._skip_rows = skip_rows
+
 
     ######
     # Internal helper methods; should not need to override below this line
@@ -183,25 +180,6 @@ class BaseReader(abc.ABC):
         else:
             return out_fn
 
-    def get_headers(self, comment_char: str = "#", delimiter=None, max_check=100) \
-            -> ty.Tuple[int, ty.Union[str, None]]:
-        """Identify the number of header rows, and the content of the one likely to contain column headers"""
-        iterator = self._create_iterator()  # unprocessed data!
-
-        delimiter = delimiter or hasattr(self._parser, '_delimiter') and self._parser._delimiter  # type: ignore
-        if not delimiter:
-            raise exceptions.ConfigurationException('Could not determine how to split a row')
-
-        last_row = None
-        for i, row in enumerate(iterator):
-            # TODO: Move some of this method to parser class to keep the reader domain-agnostic
-            if not sniffers.is_header(row, comment_char=comment_char, delimiter=delimiter):
-                return i, last_row
-            elif i > max_check:
-                raise exceptions.SnifferException(f'No headers found after limit of {max_check} rows')
-            last_row = row
-
-        raise exceptions.SnifferException('No headers found after searching entire file')
 
     def __iter__(self) -> ty.Iterator[ty.Union[str, tuple]]:
         """
