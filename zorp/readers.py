@@ -25,7 +25,7 @@ class BaseReader(abc.ABC):
     def __init__(self,
                  source: ty.Any,
                  parser: ty.Union[ty.Callable, None] = parsers.TupleLineParser(),
-                 skip_rows: ty.Union[int, None] = 0,
+                 skip_rows: int = 0,
                  skip_errors: bool = False,
                  max_errors: int = 100,
                  **kwargs):
@@ -49,8 +49,7 @@ class BaseReader(abc.ABC):
         self._max_errors = max_errors
         self.errors: list = []
 
-        # Ideally the user will specify how many header rows to skip, but if not, try to guess
-        # TODO: move skip rows detection elsewhere
+        # The user must specify how many header rows to skip
         self._skip_rows = skip_rows
 
 

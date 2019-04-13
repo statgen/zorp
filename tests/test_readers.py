@@ -52,37 +52,6 @@ class TestIterableReader:
         results = list(reader)
         assert results == ["walrus", "carpenter"], "Returns unparsed data"
 
-    #####
-    # Convenience method: Automatic header detection
-    def test_can_find_headers(self):
-        reader = readers.IterableReader(["#Comment line", '#Header\tLabels', 'X\t100'], parser=None)
-        n, content = reader.get_headers(delimiter='\t')
-        assert n == 2, 'Skipped two header rows'
-        assert content == '#Header\tLabels', 'Found correct header row'
-
-    def test_handles_lack_of_headers(self):
-        reader = readers.IterableReader(['X\t100', 'X\t101'], parser=None)
-        n, content = reader.get_headers(delimiter='\t')
-        assert n == 0, 'Skipped two header rows'
-        assert content is None, 'Found correct header row'
-
-    def test_stops_header_search_after_limit(self):
-        reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
-        with pytest.raises(exceptions.SnifferException):
-            reader.get_headers(delimiter='\t', max_check=1)
-
-    def test_no_headers_in_short_file(self):
-        reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
-        with pytest.raises(exceptions.SnifferException):
-            reader.get_headers(delimiter='\t')
-
-    def test_can_autodetect_skip_rows(self):
-        reader = readers.IterableReader(["#Comment line", '#Header\tLabels', 'X\t100'],
-                                        parser=parsers.TupleLineParser(),
-                                        skip_rows=None)
-        data = next(iter(reader))
-        assert data == ('X', '100')
-
     ######
     # Filters data
     def test_unparsed_mode_cannot_filter(self):

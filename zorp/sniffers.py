@@ -105,7 +105,7 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
     p_col = find_column(PVALUE_FIELDS, header_names)
 
     if log_p_col is not None and _validate_p(log_p_col, data, True):
-        return {'pval_col': p_col, 'is_log_pval': True}
+        return {'pval_col': log_p_col, 'is_log_pval': True}
     elif p_col and _validate_p(p_col, data, False):
         return {'pval_col': p_col, 'is_log_pval': False}
 
@@ -191,7 +191,7 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str],
     """
     reader_class = get_reader(filename)
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
-    header_names = header_text.lstrip('#').split(delimiter)
+    header_names = header_text.lower().lstrip('#').split(delimiter)
 
     parser = parsers.TupleLineParser(delimiter=delimiter)  # Just returns fields (no cleanup)
 
@@ -205,7 +205,11 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str],
     position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
     if p_config and position_config:
         # Configure a reader and parser based on the auto-detected file options
-        parser = parsers.GenericGwasLineParser({**p_config, **position_config})
+        options = {**p_config, **position_config}
+        # FIXME: Guessers are 0-based, parsers are 1-based
+        options = {k: v+1 if (isinstance(v, int) and not isinstance(v, bool)) else v  # In python, True is an int. Fun.
+                   for k, v in options.items()}
+        parser = parsers.GenericGwasLineParser(**options)
         return reader_class(filename, skip_rows=n_headers, parser=parser)
     else:
         raise exceptions.SnifferException('Could not detect required columns from file format')
