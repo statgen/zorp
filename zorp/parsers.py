@@ -16,7 +16,7 @@ class _basic_standard_container(ty.NamedTuple):
     pos: int
     ref: str
     alt: str
-    pvalue: numbers.Number  # TODO convert to using log
+    log_pvalue: float
 
     # # Optional fields for future expansion
     # af: float
@@ -24,6 +24,11 @@ class _basic_standard_container(ty.NamedTuple):
     # stderr: float
     # marker: str
     # rsid: str
+
+    @property
+    def pvalue(self) -> float:
+        return 10 ** -self.log_pvalue if self.log_pvalue is not None else None
+
 
     @property
     def pval(self) -> numbers.Number:
@@ -136,15 +141,6 @@ class GenericGwasLineParser(TupleLineParser):
     def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore
 
-    def _get_pval(self, pvalue):
-        # TODO: Use utility function
-        if pvalue in MISSING_VALUES:
-            return None
-        pvalue = float(pvalue)
-        if self._is_log_pval:
-            pvalue = 10 ** -pvalue
-        return pvalue
-
     def _process_values(self, values: ty.Sequence):
         # Fetch values
         if self._marker_col is not None:
@@ -159,12 +155,12 @@ class GenericGwasLineParser(TupleLineParser):
 
         # Perform type coercion
         try:
-            pval = self._get_pval(pval)
+            log_pval = parser_utils.parse_pval_to_log(pval, is_log=self._is_log_pval)
             pos = int(pos)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=values)
 
-        return chrom, pos, ref, alt, pval
+        return chrom, pos, ref, alt, log_pval
 
     def _output_container(self, values):
         return self._container(*values)

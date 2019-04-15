@@ -30,7 +30,7 @@ class TestStandardGwasParser:
         assert output.pos == 100
         assert output.ref == 'A'
         assert output.alt == 'C'
-        assert output.pvalue == 0.05
+        assert output.pvalue == pytest.approx(0.05)
 
     def test_enforces_pos_as_int(self):
         line = '1\tNOPE\tA\tC\t0.05'
@@ -53,7 +53,8 @@ class TestStandardGwasParser:
                                                        pval_col=5, is_log_pval=True,
                                                        delimiter='\t')
         p = special_parser(line)
-        assert p.pvalue == 0.1, 'Converts -log to pvalue'
+        assert p.log_pvalue == pytest.approx(1), 'Converts -log to pvalue'
+        assert p.pvalue == pytest.approx(0.1), 'Converts -log to pvalue'
 
     def test_parses_marker_to_clean_format(self):
         line = 'chr2:100:A:C_anno\t.05'

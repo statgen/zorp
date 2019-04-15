@@ -105,7 +105,7 @@ class TestIterableReader:
         out_fn = reader.write(expected_fn)
 
         with open(out_fn, 'r') as f:
-            assert f.readline() == '#chrom\tpos\tref\talt\tpvalue\n'
+            assert f.readline() == '#chrom\tpos\tref\talt\tlog_pvalue\n'
 
     ######
     # Error handling
