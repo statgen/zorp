@@ -55,4 +55,12 @@ class TestStandardGwasParser:
         p = special_parser(line)
         assert p.pvalue == 0.1, 'Converts -log to pvalue'
 
-# TODO: Add tests for the generic gwas parser (and all its various combinations of options)
+    def test_parses_marker_to_clean_format(self):
+        line = 'chr2:100:A:C_anno\t.05'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2, delimiter='\t')
+        p = special_parser(line)
+        assert p.chrom == '2', 'Finds chromosome'
+        assert p.pos == 100, 'Finds position'
+        assert p.ref == 'A', 'Finds ref'
+        assert p.alt == 'C', 'Finds alt'
+        assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'

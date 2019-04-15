@@ -34,7 +34,8 @@ def parse_pval_to_log(value, is_log=False):
 def parse_marker(value: str, test: bool = False):
     match = REGEX_MARKER.fullmatch(value)
     if match:
-        return match.groups()
+        chrom, pos, ref, alt, _ = match.groups()
+        return chrom, pos, ref, alt
 
     if not test:
         raise exceptions.LineParseException('Could not understand marker format. Must be of format chr:pos or chr:pos_ref/alt')

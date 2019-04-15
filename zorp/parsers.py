@@ -7,10 +7,7 @@ import re
 import typing as ty
 
 from .const import MISSING_VALUES
-from . import exceptions
-
-# TODO: Improve marker pattern
-MARKER_PATTERN = re.compile(r'([^:]+):([0-9]+)_([-ATCG.]+)/([-ATCG.*]+)')
+from . import exceptions, parser_utils
 
 
 class _basic_standard_container(ty.NamedTuple):
@@ -19,34 +16,25 @@ class _basic_standard_container(ty.NamedTuple):
     pos: int
     ref: str
     alt: str
-    pvalue: numbers.Number
+    pvalue: numbers.Number  # TODO convert to using log
+
+    # # Optional fields for future expansion
+    # af: float
+    # beta: float
+    # stderr: float
+    # marker: str
+    # rsid: str
 
     @property
     def pval(self) -> numbers.Number:
         """A common field name alias"""
         return self.pvalue
 
-
-class _extended_standard_container(ty.NamedTuple):
-    """Store GWAS results in a predictable format, with a variety of added fields"""
-    # Required fields
-    chrom: str
-    pos: int
-    ref: str
-    alt: str
-    pvalue: numbers.Number
-
-    # Optional fields
-    af: float
-    beta: float
-    stderr: float
-    marker: str
-    rsid: str
-
     @property
-    def pval(self) -> numbers.Number:
-        """A common field name alias"""
-        return self.pvalue
+    def marker(self) -> str:
+        """Specify the marker in a string format compatible with UM LD server and other variant-specific requests"""
+        ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
+        return f'{self.chrom}:{self.pos}{ref_alt}'
 
 
 class AbstractLineParser(abc.ABC):
@@ -144,13 +132,6 @@ class GenericGwasLineParser(TupleLineParser):
 
         self._is_log_pval = is_log_pval
 
-    # def _parse_marker(self, marker) -> tuple:
-    #     match = MARKER_PATTERN.match(marker)
-    #     if match is None:
-    #         raise exceptions.ParseError(f'Could not read interpret marker ID: {marker}')
-    #
-    #     return match.groups()
-
     @property
     def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore
@@ -166,10 +147,13 @@ class GenericGwasLineParser(TupleLineParser):
 
     def _process_values(self, values: ty.Sequence):
         # Fetch values
-        chrom = values[self._chr_col]
-        pos = values[self._pos_col]
-        ref = values[self._ref_col]
-        alt = values[self._alt_col]
+        if self._marker_col is not None:
+            chrom, pos, ref, alt = parser_utils.parse_marker(values[self._marker_col])
+        else:
+            chrom = values[self._chr_col]
+            pos = values[self._pos_col]
+            ref = values[self._ref_col]
+            alt = values[self._alt_col]
 
         pval = values[self._pval_col]
 
