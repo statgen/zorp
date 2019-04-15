@@ -137,6 +137,17 @@ class GenericGwasLineParser(TupleLineParser):
 
         self._is_log_pval = is_log_pval
 
+        self.validate_config()
+
+    def validate_config(self):
+        """Ensures that a minimally working parser has been created"""
+        has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
+                                                             for x in ('_chr_col', '_pos_col', '_ref_col', '_alt_col'))
+        is_valid = has_position and (self._pval_col is not None)
+        if not is_valid:
+            raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
+        return is_valid
+
     @property
     def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore

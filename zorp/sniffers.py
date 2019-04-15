@@ -182,8 +182,11 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
     raise exceptions.SnifferException('No headers found after searching entire file')
 
 
-def guess_gwas(filename: ty.Union[ty.Iterable, str],
-               delimiter: str = '\t') -> readers.BaseReader:
+def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
+               skip_rows=None,
+               parser: parsers.AbstractLineParser = None,
+               delimiter: str = '\t',
+               **kwargs) -> readers.BaseReader:
     """
     Read tab delimited rows of data and return a set of options compatible with the GenericGwasLineParser class
 
@@ -191,25 +194,31 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str],
     """
     reader_class = get_reader(filename)
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
-    header_names = header_text.lower().lstrip('#').split(delimiter)
 
-    parser = parsers.TupleLineParser(delimiter=delimiter)  # Just returns fields (no cleanup)
+    # Don't try to guess parser options if options are explicitly provided. That would be silly.
+    to_skip = n_headers if skip_rows is None else skip_rows
+    if parser is None:
+        header_names = header_text.lower().lstrip('#').split(delimiter)
 
-    data_reader = reader_class(filename, skip_rows=n_headers, parser=parser)
+        parser = parsers.TupleLineParser(delimiter=delimiter)  # Just returns fields (no cleanup)
 
-    p_config = get_pval_column(header_names, data_reader)
-    if p_config is None:
-        raise exceptions.SnifferException('Could not find required field: pvalue')
+        # Any kwargs not specified for this function are assumed to be ready options, and passed directly in
+        data_reader = reader_class(filename, skip_rows=to_skip, parser=parser, **kwargs)
 
-    header_names[p_config['pval_col']] = None  # Remove this column from consideration for other matches
-    position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
-    if p_config and position_config:
-        # Configure a reader and parser based on the auto-detected file options
-        options = {**p_config, **position_config}
-        # FIXME: Guessers are 0-based, parsers are 1-based
-        options = {k: v+1 if (isinstance(v, int) and not isinstance(v, bool)) else v  # In python, True is an int. Fun.
-                   for k, v in options.items()}
-        parser = parsers.GenericGwasLineParser(**options)
-        return reader_class(filename, skip_rows=n_headers, parser=parser)
-    else:
-        raise exceptions.SnifferException('Could not detect required columns from file format')
+        p_config = get_pval_column(header_names, data_reader)
+        if p_config is None:
+            raise exceptions.SnifferException('Could not find required field: pvalue')
+
+        header_names[p_config['pval_col']] = None  # Remove this column from consideration for other matches
+        position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
+        if p_config and position_config:
+            # Configure a reader and parser based on the auto-detected file options
+            options = {**p_config, **position_config}
+            # FIXME: Guessers are 0-based, parsers are 1-based
+            options = {k: v+1 if (isinstance(v, int) and not isinstance(v, bool)) else v  # In python, True is an int. Fun.
+                       for k, v in options.items()}
+            parser = parsers.GenericGwasLineParser(**options)
+        else:
+            raise exceptions.SnifferException('Could not detect required columns from file format')
+
+    return reader_class(filename, skip_rows=to_skip, parser=parser)
