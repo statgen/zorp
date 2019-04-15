@@ -23,14 +23,14 @@ class TestTupleParser:
 
 class TestStandardGwasParser:
     def test_parses_locuszoom_standard_format(self):
-        line = '1\t100\tA\tC\t0.05'
+        line = '1\t100\tA\tC\t10'
         output = parsers.standard_gwas_parser(line)
         assert isinstance(output, parsers._basic_standard_container)
         assert output.chrom == '1'
         assert output.pos == 100
         assert output.ref == 'A'
         assert output.alt == 'C'
-        assert output.pvalue == pytest.approx(0.05)
+        assert output.pvalue == pytest.approx(1e-10)
 
     def test_enforces_pos_as_int(self):
         line = '1\tNOPE\tA\tC\t0.05'

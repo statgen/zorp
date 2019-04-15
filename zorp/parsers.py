@@ -171,6 +171,13 @@ class GenericGwasLineParser(TupleLineParser):
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=values)
 
+        # Some old GWAS files simply won't provide ref or alt information, and the parser will need to do without
+        if ref in MISSING_VALUES:
+            ref = None
+
+        if alt in MISSING_VALUES:
+            alt = None
+
         return chrom, pos, ref, alt, log_pval
 
     def _output_container(self, values):
@@ -179,5 +186,5 @@ class GenericGwasLineParser(TupleLineParser):
 
 # An example parser pre-configured for the LocusZoom standard file format
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                             pval_col=5, is_log_pval=False,
+                                             pval_col=5, is_log_pval=True,
                                              delimiter='\t')
