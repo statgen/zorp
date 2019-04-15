@@ -17,7 +17,7 @@ def parse_pval_to_log(value, is_log=False):
         return value
     val = float(value)  # TODO: use Ryan's utility to handle exponents
 
-    if is_log:  #Take as is
+    if is_log:  # Take as is
         return val
 
     # Regular pvalue: validate and convert

@@ -1,4 +1,5 @@
 """Tests for file format detection"""
+import os
 import pytest
 
 from zorp import exceptions, readers, sniffers
@@ -8,6 +9,22 @@ def _fixture_to_strings(lines: list, delimiter: str ='\t') -> list:
     """Helper so that our unit tests are a little more readable"""
     return [delimiter.join(line)
             for line in lines]
+
+
+class TestFormatDetection:
+    def test_opens_gzip(self):
+        fn = os.path.join(os.path.dirname(__file__), "data/sample.gz")
+        reader = sniffers.get_reader(fn)
+        assert reader is readers.TabixReader
+
+    def test_opens_txt(self):
+        fn = os.path.join(os.path.dirname(__file__), "data/pheweb-samples/has-fields-.txt")
+        reader = sniffers.get_reader(fn)
+        assert reader is readers.TextFileReader
+
+    def test_opens_iterable_if_not_given_a_string(self):
+        reader = sniffers.get_reader([['Header', 'Fields'], [1,2]])
+        assert reader is readers.IterableReader
 
 
 class TestHeaderDetection:
