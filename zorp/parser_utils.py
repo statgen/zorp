@@ -9,7 +9,7 @@ from .const import MISSING_VALUES
 from . import exceptions
 
 
-REGEX_MARKER = re.compile(r'(?:chr)?(.+):(\d+)[_:]?(\w+)?[/:|]?([^_]+)?_?(.*)?')
+REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]+)?_?(.*)?')
 
 
 def parse_pval_to_log(value, is_log=False):
