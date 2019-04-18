@@ -5,7 +5,7 @@ import pytest
 from zorp import exceptions, readers, sniffers
 
 
-def _fixture_to_strings(lines: list, delimiter: str ='\t') -> list:
+def _fixture_to_strings(lines: list, delimiter: str = '\t') -> list:
     """Helper so that our unit tests are a little more readable"""
     return [delimiter.join(line)
             for line in lines]
@@ -119,7 +119,7 @@ class TestGetPvalColumn:
         headers = ['logpvalue', 'pval']
         data = [[0.5, 0.5]]
         actual = sniffers.get_pval_column(headers, data)
-        assert actual == { 'pval_col': 0, 'is_log_pval': True }
+        assert actual == {'pval_col': 0, 'is_log_pval': True}
 
     def test_checks_that_pvalues_are_in_a_realistic_range_0_to_1(self):
         headers = ['pval']
@@ -165,11 +165,21 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
-    @pytest.mark.skip
     def test_parses_plink(self):
-        data = _fixture_to_strings([])
+        # Format: https: // www.cog - genomics.org / plink2 / formats
+        # Sample: https: // github.com / babelomics / babelomics / wiki / plink.assoc
+        # h/t Josh Weinstock
+        data = _fixture_to_strings([
+            ['CHR', 'SNP', 'BP', 'A1', 'F_A', 'F_U', 'A2', 'CHISQ', 'P'],
+            ['1', 'rs3094315', '742429', 'C', '0.1509', '0.1394', 'T', '0.0759', '0.782', '1.097']
+        ])
         actual = sniffers.guess_gwas(data)
-        # assert actual._parser._field == 0, 'Found index of col'
+        assert actual._parser._chr_col == 0, 'Found index of col'
+        assert actual._parser._pos_col == 2, 'Found index of pos col'
+        assert actual._parser._ref_col == 3, 'Found index of ref col'
+        assert actual._parser._alt_col == 6, 'Found index of alt col'
+        assert actual._parser._pval_col == 8, 'Found index of pval col'
+        assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
     def test_parses_raremetal(self):
         data = _fixture_to_strings([

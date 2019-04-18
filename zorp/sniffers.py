@@ -83,8 +83,8 @@ def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2):
 def get_pval_column(header_names: list, data_rows: ty.Iterable) \
         -> ty.Union[dict, None]:
     """Return (column, is_log), or None/None if config not found"""
-    LOGPVALUE_FIELDS = ('log_pvalue', 'log_pval', 'logpvalue')
-    PVALUE_FIELDS = ('pvalue', 'p.value', 'pval', 'p_score')
+    LOGPVALUE_FIELDS = ('neg_log_pvalue', 'log_pvalue', 'log_pval', 'logpvalue')
+    PVALUE_FIELDS = ('pvalue', 'p.value', 'pval', 'p_score', 'p')
 
     data = itertools.islice(data_rows, 100)
 

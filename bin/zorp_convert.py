@@ -74,6 +74,10 @@ def run():
     parser.add_argument('--stop-on-error', action='store_true', dest='stop_on_error',
                         help='Should we stop parsing immediately on the first error?')
 
+    # Offering a filtering option might be useful, but hold this feature until it's more useful than tabix
+    # parser.add_argument('--filter', action='append', nargs=2,
+    #                     help='Only accept lines that match the provided string value')
+
     # Format specification options  # TODO: Improve argparse to make clear which options are mutually exclusive.
     # There are multiple ways of specifying chrom/pos/ref/alt columns: auto-detect, marker, or explicit columns
     parser.add_argument('--auto', action='store_true', dest='auto',
