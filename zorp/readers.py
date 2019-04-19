@@ -21,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
-    # TODO: Add a mechanism to skip N rows on iteration, to handle headers vs data
     def __init__(self,
                  source: ty.Any,
                  parser: ty.Union[ty.Callable, None] = parsers.TupleLineParser(),
@@ -52,6 +51,10 @@ class BaseReader(abc.ABC):
         # The user must specify how many header rows to skip
         self._skip_rows = skip_rows
 
+    @abc.abstractmethod
+    def _create_iterator(self) -> ty.Iterator[str]:
+        """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
+        raise NotImplementedError
 
     ######
     # Internal helper methods; should not need to override below this line
@@ -59,11 +62,6 @@ class BaseReader(abc.ABC):
         """Determine whether a given row satisfies all of the applied filters"""
         return all(test_func(parsed_row[position], parsed_row)
                    for position, test_func in self._filters)
-
-    @abc.abstractmethod
-    def _create_iterator(self) -> ty.Iterator[str]:
-        """Create an iterator that can be used over all possible data. Eg, open a file or go through a list"""
-        raise NotImplementedError
 
     def _make_generator(self, iterator: ty.Iterator[str]) -> ty.Iterator[ty.Union[str, tuple]]:
         """
@@ -77,6 +75,7 @@ class BaseReader(abc.ABC):
                 continue
 
             if not self._parser:
+                # There is a "parser=None" option, to return raw lines of text. This is useful for, eg, format sniffers.
                 yield row
             else:
                 try:
@@ -179,7 +178,6 @@ class BaseReader(abc.ABC):
         else:
             return out_fn
 
-
     def __iter__(self) -> ty.Iterator[ty.Union[str, tuple]]:
         """
         The parser instance can be treated as an iterable over raw or parsed lines (based on options)
@@ -196,7 +194,7 @@ class BaseReader(abc.ABC):
 
 class IterableReader(BaseReader):
     """
-    Read data from an externally provided iterable object (like sys.stdin, or a list)
+    Read data from an externally provided iterable object (like piping from sys.stdin, or a list)
 
     This can be used as an adapter to wrap an external source in a standard interface, and is also useful for
         unit testing.

@@ -3,7 +3,6 @@ Parsers: handle the act of reading one entity (such as line)
 """
 import abc
 import numbers
-import re
 import typing as ty
 
 from .const import MISSING_VALUES
@@ -16,7 +15,7 @@ class _basic_standard_container(ty.NamedTuple):
     pos: int
     ref: str
     alt: str
-    log_pvalue: float
+    neg_log_pvalue: float
 
     # # Optional fields for future expansion
     # af: float
@@ -27,8 +26,7 @@ class _basic_standard_container(ty.NamedTuple):
 
     @property
     def pvalue(self) -> float:
-        return 10 ** -self.log_pvalue if self.log_pvalue is not None else None
-
+        return 10 ** -self.neg_log_pvalue if self.neg_log_pvalue is not None else None
 
     @property
     def pval(self) -> numbers.Number:
@@ -142,7 +140,7 @@ class GenericGwasLineParser(TupleLineParser):
     def validate_config(self):
         """Ensures that a minimally working parser has been created"""
         has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
-                                                             for x in ('_chr_col', '_pos_col', '_ref_col', '_alt_col'))
+                                                            for x in ('_chr_col', '_pos_col', '_ref_col', '_alt_col'))
         is_valid = has_position and (self._pval_col is not None)
         if not is_valid:
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
@@ -157,6 +155,7 @@ class GenericGwasLineParser(TupleLineParser):
         if self._marker_col is not None:
             chrom, pos, ref, alt = parser_utils.parse_marker(values[self._marker_col])
         else:
+            # TODO: Should we check for, and strip, the letters chr?
             chrom = values[self._chr_col]
             pos = values[self._pos_col]
             ref = values[self._ref_col]

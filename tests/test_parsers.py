@@ -53,7 +53,7 @@ class TestStandardGwasParser:
                                                        pval_col=5, is_log_pval=True,
                                                        delimiter='\t')
         p = special_parser(line)
-        assert p.log_pvalue == pytest.approx(1), 'Converts -log to pvalue'
+        assert p.neg_log_pvalue == pytest.approx(1), 'Converts -log to pvalue'
         assert p.pvalue == pytest.approx(0.1), 'Converts -log to pvalue'
 
     def test_parses_marker_to_clean_format(self):
