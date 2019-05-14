@@ -2,6 +2,7 @@
 Parsers: handle the act of reading one entity (such as line)
 """
 import abc
+import inspect
 import math
 import numbers
 import typing as ty
@@ -45,6 +46,14 @@ class _basic_standard_container(ty.NamedTuple):
         """Specify the marker in a string format compatible with UM LD server and other variant-specific requests"""
         ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
         return f'{self.chrom}:{self.pos}{ref_alt}'
+
+    @classmethod
+    def _to_serialize(cls)-> ty.List[str]:
+        return [name for name, value in inspect.getmembers(cls) if inspect.isdatadescriptor(value)]
+
+    def to_dict(self):
+        # A special version of asdict that also includes derived properties
+        return {name: getattr(self, name) for name in self._to_serialize()}
 
 
 class AbstractLineParser(abc.ABC):

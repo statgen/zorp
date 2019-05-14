@@ -8,6 +8,18 @@ from zorp import (
 )
 
 
+class TestBasicContainer:
+    def test_serializes_derived_fields(self):
+        container = parsers._basic_standard_container('X', 1, 'A', 'G', 12)
+        serialized = container.to_dict()
+
+        for field in container._fields:
+            assert field in serialized
+
+        for annotation in ['pvalue', 'pval', 'marker']:
+            assert annotation in serialized
+
+
 class TestTupleParser:
     def test_can_configure_delimiter(self):
         parser = parsers.TupleLineParser(delimiter=',')
