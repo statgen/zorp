@@ -119,7 +119,7 @@ class TestGetPvalColumn:
         headers = ['logpvalue', 'pval']
         data = [[0.5, 0.5]]
         actual = sniffers.get_pval_column(headers, data)
-        assert actual == {'pval_col': 0, 'is_log_pval': True}
+        assert actual == {'pval_col': 1, 'is_log_pval': True}
 
     def test_checks_that_pvalues_are_in_a_realistic_range_0_to_1(self):
         headers = ['pval']

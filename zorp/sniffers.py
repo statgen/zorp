@@ -82,7 +82,10 @@ def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2):
 
 def get_pval_column(header_names: list, data_rows: ty.Iterable) \
         -> ty.Union[dict, None]:
-    """Return (column, is_log), or None/None if config not found"""
+    """
+    Return (column, is_log), or None/None if config not found
+    Column numbers are 1-based, for compatibility with parsers
+    """
     LOGPVALUE_FIELDS = ('neg_log_pvalue', 'log_pvalue', 'log_pval', 'logpvalue')
     PVALUE_FIELDS = ('pvalue', 'p.value', 'pval', 'p_score', 'p')
 
@@ -105,15 +108,22 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
     p_col = find_column(PVALUE_FIELDS, header_names)
 
     if log_p_col is not None and _validate_p(log_p_col, data, True):
-        return {'pval_col': log_p_col, 'is_log_pval': True}
+        return {'pval_col': log_p_col + 1, 'is_log_pval': True}
     elif p_col and _validate_p(p_col, data, False):
-        return {'pval_col': p_col, 'is_log_pval': False}
+        return {'pval_col': p_col + 1, 'is_log_pval': False}
 
     # Could not auto-determine an appropriate pvalue column
     return None
 
 
 def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
+    """
+    Find the information required to uniquely identify the marker. Returns 1-based column indices for compatibility
+        with line parsers.
+    :param header_names:
+    :param data_rows:
+    :return:
+    """
     # Get from either a marker, or 4 separate columns
     MARKER_FIELDS = ('snpid', 'marker', 'markerid', 'snpmarker')
     CHR_FIELDS = ('chrom', 'chr')
@@ -129,7 +139,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     first_row = next(data)
     marker_col = find_column(MARKER_FIELDS, header_names)
     if marker_col and parser_utils.parse_marker(first_row[marker_col], test=True):
-        return { 'marker_col': marker_col }
+        return {'marker_col': marker_col + 1}
 
     # If single columns were incomplete, attempt to auto detect 4 separate columns. All 4 must
     #  be found for this function to report a match.
@@ -146,7 +156,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
         if col is None:
             return None
 
-        config[col_name] = col
+        config[col_name] = col + 1
         # Once a column has been assigned, remove it from consideration for future matches
         headers_marked[col] = None
 
@@ -209,14 +219,11 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
         if p_config is None:
             raise exceptions.SnifferException('Could not find required field: pvalue')
 
-        header_names[p_config['pval_col']] = None  # Remove this column from consideration for other matches
+        header_names[p_config['pval_col'] - 1] = None  # Remove this column from consideration for other matches
         position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
         if p_config and position_config:
             # Configure a reader and parser based on the auto-detected file options
             options = {**p_config, **position_config}
-            # FIXME: Guessers are 0-based, parsers are 1-based
-            options = {k: v+1 if (isinstance(v, int) and not isinstance(v, bool)) else v  # In python, True is an int. Fun.
-                       for k, v in options.items()}
             parser = parsers.GenericGwasLineParser(**options)
         else:
             raise exceptions.SnifferException('Could not detect required columns from file format')

@@ -2,6 +2,7 @@
 Parsers: handle the act of reading one entity (such as line)
 """
 import abc
+import math
 import numbers
 import typing as ty
 
@@ -25,8 +26,14 @@ class _basic_standard_container(ty.NamedTuple):
     # rsid: str
 
     @property
-    def pvalue(self) -> float:
-        return 10 ** -self.neg_log_pvalue if self.neg_log_pvalue is not None else None
+    def pvalue(self) -> ty.Union[float, None]:
+        if self.neg_log_pvalue is None:
+            return None
+        elif math.isinf(self.neg_log_pvalue):
+            # This is an explicit design choice here, since we parse p=0 to infinity
+            return 0
+        else:
+            return 10 ** -self.neg_log_pvalue
 
     @property
     def pval(self) -> numbers.Number:
