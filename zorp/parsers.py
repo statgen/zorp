@@ -133,7 +133,10 @@ class GenericGwasLineParser(TupleLineParser):
 
         # The kwargs use human-friendly numbers. Internally, we store them as 0-based indices.
         def _human_to_zero(value):
-            return value - 1 if value else None
+            if value is None:
+                return value
+            else:
+                return value - 1
 
         self._chr_col = _human_to_zero(chr_col)
         self._pos_col = _human_to_zero(pos_col)
