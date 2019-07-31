@@ -165,6 +165,12 @@ class GenericGwasLineParser(TupleLineParser):
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
         return is_valid
 
+    def _split_fields(self, row: str):
+        fields = super(GenericGwasLineParser, self)._split_fields(row)
+        if len(fields) == 1:
+            raise exceptions.LineParseException('Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
+        return fields
+
     @property
     def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore

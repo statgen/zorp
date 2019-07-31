@@ -77,3 +77,12 @@ class TestStandardGwasParser:
         assert p.ref == 'A', 'Finds ref'
         assert p.alt == 'C', 'Finds alt'
         assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'
+
+    def test_warns_about_incorrect_delimiter(self):
+        """
+        Regression test: human-edited files may have a mix of tabs and spaces; this is hard to spot!
+        """
+        line = 'chr2:100:A:C_anno\t.05'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2, delimiter=' ')
+        with pytest.raises(exceptions.LineParseException, match="delimiter"):
+            special_parser(line)
