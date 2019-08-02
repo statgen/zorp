@@ -8,7 +8,7 @@ import numbers
 import typing as ty
 
 try:
-    from fastnumbers import int
+    from fastnumbers import int, float
 except ImportError:
     pass
 
@@ -216,7 +216,38 @@ class GenericGwasLineParser(TupleLineParser):
         return self._container(*values)
 
 
+class QuickGwasLineParser:
+    """
+    A "fast path" parser used for pre-standardized input. This parser gains speed by dispensing with
+    all the usual re-use and "bad data" tolerance of a more generic tool
+    """
+    def __init__(self, *, container: ty.Callable[..., tuple] = _basic_standard_container):
+        # The only thing that can be configured is the container (in case we want to support extra fields in the future)
+        self._container = _basic_standard_container
+
+    @property
+    def fields(self) -> ty.Container:
+        return self._container._fields  # type: ignore
+
+    def __call__(self, row: str) -> _basic_standard_container:
+        # Assume the file format is *exactly* standardized with no extra fields of any kind
+        chrom, pos, ref, alt, log_pvalue = row.strip().split()
+        pos = int(pos)
+        if ref in MISSING_VALUES:
+            ref = None
+
+        if alt in MISSING_VALUES:
+            alt = None
+
+        log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
+
+        return _basic_standard_container(chrom, pos, ref, alt, log_pvalue)
+
+
 # An example parser pre-configured for the LocusZoom standard file format
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
                                              pval_col=5, is_log_pval=True,
                                              delimiter='\t')
+
+
+standard_gwas_parser_quick = QuickGwasLineParser()

@@ -60,6 +60,9 @@ class BaseReader(abc.ABC):
     # Internal helper methods; should not need to override below this line
     def _apply_filters(self, parsed_row: tuple) -> bool:
         """Determine whether a given row satisfies all of the applied filters"""
+        if not len(self._filters):
+            return True
+
         return all(test_func(parsed_row[position], parsed_row)
                    for position, test_func in self._filters)
 

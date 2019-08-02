@@ -1,5 +1,7 @@
 """Test line parsers"""
 
+import math
+
 import pytest
 
 from zorp import (
@@ -86,3 +88,28 @@ class TestStandardGwasParser:
         special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2, delimiter=' ')
         with pytest.raises(exceptions.LineParseException, match="delimiter"):
             special_parser(line)
+
+
+class TestQuickParser:
+    """
+    Verify that the "fast path" parser returns legible output
+    """
+    def test_basic_values(self):
+        line = '1\t100\tA\tC\t10'
+        output = parsers.standard_gwas_parser_quick(line)
+        assert isinstance(output, parsers._basic_standard_container)
+        assert output.chrom == '1'
+        assert output.pos == 100
+        assert output.ref == 'A'
+        assert output.alt == 'C'
+        assert output.pvalue == pytest.approx(1e-10)
+
+    def test_handles_missing_and_special_values(self):
+        line = '1\t100\tnull\tNone\tInfinity'
+        output = parsers.standard_gwas_parser_quick(line)
+        assert isinstance(output, parsers._basic_standard_container)
+        assert output.chrom == '1'
+        assert output.pos == 100
+        assert output.ref is None
+        assert output.alt is None
+        assert math.isinf(output.neg_log_pvalue)
