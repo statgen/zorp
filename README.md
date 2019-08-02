@@ -62,7 +62,7 @@ Or specify your data columns exactly:
 
 To install dependencies and run in development mode:
 
-`pip install -e '.[test]'`
+`pip install -e '.[test,perf]'`
 
 To run unit tests, use
 

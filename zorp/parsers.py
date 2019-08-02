@@ -7,6 +7,11 @@ import math
 import numbers
 import typing as ty
 
+try:
+    from fastnumbers import int
+except ImportError:
+    pass
+
 from .const import MISSING_VALUES
 from . import exceptions, parser_utils
 
@@ -48,7 +53,7 @@ class _basic_standard_container(ty.NamedTuple):
         return f'{self.chrom}:{self.pos}{ref_alt}'
 
     @classmethod
-    def _to_serialize(cls)-> ty.List[str]:
+    def _to_serialize(cls) -> ty.List[str]:
         return [name for name, value in inspect.getmembers(cls) if inspect.isdatadescriptor(value)]
 
     def to_dict(self):
@@ -168,7 +173,8 @@ class GenericGwasLineParser(TupleLineParser):
     def _split_fields(self, row: str):
         fields = super(GenericGwasLineParser, self)._split_fields(row)
         if len(fields) == 1:
-            raise exceptions.LineParseException('Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
+            raise exceptions.LineParseException(
+                'Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
         return fields
 
     @property

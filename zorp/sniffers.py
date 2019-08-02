@@ -10,6 +10,11 @@ import binascii
 import itertools
 import typing as ty
 
+try:
+    from fastnumbers import float
+except ImportError:
+    pass
+
 from .const import MISSING_VALUES
 from . import (
     const,
@@ -49,7 +54,7 @@ def levenshtein(s1, s2):
     if len(s2) == 0:
         return len(s1)
 
-    previous_row = range(len(s2) + 1)
+    previous_row = list(range(len(s2) + 1))
     for i, c1 in enumerate(s1):
         current_row = [i + 1]
         for j, c2 in enumerate(s2):
@@ -93,13 +98,13 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
 
     def _validate_p(col: int, data: ty.Iterator, is_log: bool):
         # All values must be parseable
-        vals = [ row[col] for row in data ]  # missingToNull(data.map(row => row[col]))
+        vals = [row[col] for row in data]  # missingToNull(data.map(row => row[col]))
         cleaned_vals = [None if val in const.MISSING_VALUES else val
                         for val in vals]
         try:
-            ps = [parser_utils.parse_pval_to_log(v, is_log=is_log)
-                  for v in cleaned_vals]
-        except:
+            for v in cleaned_vals:
+                parser_utils.parse_pval_to_log(v, is_log=is_log)
+        except Exception:
             return False
 
         return True
@@ -144,14 +149,14 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     # If single columns were incomplete, attempt to auto detect 4 separate columns. All 4 must
     #  be found for this function to report a match.
     headers_marked = header_names.copy()
-    find = [
+    to_find = [
         ['chr_col', CHR_FIELDS],
         ['pos_col', POS_FIELDS],
         ['ref_col', REF_FIELDS],
         ['alt_col', ALT_FIELDS],
     ]
     config = {}
-    for col_name, col_choices in find:
+    for col_name, col_choices in to_find:
         col = find_column(col_choices, headers_marked)
         if col is None:
             return None
@@ -208,6 +213,7 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
     # Don't try to guess parser options if options are explicitly provided. That would be silly.
     to_skip = n_headers if skip_rows is None else skip_rows
     if parser is None:
+        # FIXME: Handle case of files with no header rows
         header_names = header_text.lower().lstrip('#').split(delimiter)
 
         parser = parsers.TupleLineParser(delimiter=delimiter)  # Just returns fields (no cleanup)

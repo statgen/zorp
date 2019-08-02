@@ -8,6 +8,11 @@ import re
 from .const import MISSING_VALUES
 from . import exceptions
 
+try:
+    from fastnumbers import float
+except ImportError:
+    pass
+
 
 REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]+)?_?(.*)?')
 
@@ -41,8 +46,7 @@ def parse_marker(value: str, test: bool = False):
         return chrom, pos, ref, alt
 
     if not test:
-        raise exceptions.LineParseException('Could not understand marker format. Must be of format chr:pos or chr:pos_ref/alt')
+        raise exceptions.LineParseException(
+            'Could not understand marker format. Must be of format chr:pos or chr:pos_ref/alt')
     else:
         return None
-
-
