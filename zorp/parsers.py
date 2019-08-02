@@ -58,6 +58,8 @@ class _basic_standard_container(ty.NamedTuple):
 
     def to_dict(self):
         # A special version of asdict that also includes derived properties
+        # FIXME: This method exists, but it is rather staggeringly slow. Only use as a last resort.
+        #  This should be reimplemented to generate the list of attributes as part of the class, not the instance
         return {name: getattr(self, name) for name in self._to_serialize()}
 
 
