@@ -216,9 +216,10 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
         # FIXME: Handle case of files with no header rows
         header_names = header_text.lower().lstrip('#').split(delimiter)
 
-        parser = parsers.TupleLineParser(delimiter=delimiter)  # Just returns fields (no cleanup)
+        # The first effort at field detection just extracts fields, with no value cleanup
+        parser = parsers.TupleLineParser(delimiter=delimiter)
 
-        # Any kwargs not specified for this function are assumed to be ready options, and passed directly in
+        # Any kwargs not specified for this function are assumed to be reader options, and passed directly in
         data_reader = reader_class(filename, skip_rows=to_skip, parser=parser, **kwargs)
 
         p_config = get_pval_column(header_names, data_reader)

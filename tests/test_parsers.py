@@ -10,36 +10,11 @@ from zorp import (
 )
 
 
-class TestBasicContainer:
-    def test_serializes_derived_fields(self):
-        container = parsers._basic_standard_container('X', 1, 'A', 'G', 12)
-        serialized = container.to_dict()
-
-        for field in container._fields:
-            assert field in serialized
-
-        for annotation in ['pvalue', 'pval', 'marker']:
-            assert annotation in serialized
-
-
-class TestTupleParser:
-    def test_can_configure_delimiter(self):
-        parser = parsers.TupleLineParser(delimiter=',')
-        output = parser('a,b,c')
-        assert output == ('a', 'b', 'c')
-
-    def test_can_return_list_instead_of_tuple(self):
-        parser = parsers.TupleLineParser(container=list)
-        output = parser('a\tb\tc')
-        assert isinstance(output, list)
-        assert output == ['a', 'b', 'c']
-
-
 class TestStandardGwasParser:
     def test_parses_locuszoom_standard_format(self):
         line = '1\t100\tA\tC\t10'
         output = parsers.standard_gwas_parser(line)
-        assert isinstance(output, parsers._basic_standard_container)
+        assert isinstance(output, parsers.BasicVariant)
         assert output.chrom == '1'
         assert output.pos == 100
         assert output.ref == 'A'
@@ -97,7 +72,7 @@ class TestQuickParser:
     def test_basic_values(self):
         line = '1\t100\tA\tC\t10'
         output = parsers.standard_gwas_parser_quick(line)
-        assert isinstance(output, parsers._basic_standard_container)
+        assert isinstance(output, parsers.BasicVariant)
         assert output.chrom == '1'
         assert output.pos == 100
         assert output.ref == 'A'
@@ -107,7 +82,7 @@ class TestQuickParser:
     def test_handles_missing_and_special_values(self):
         line = '1\t100\tnull\tNone\tInfinity'
         output = parsers.standard_gwas_parser_quick(line)
-        assert isinstance(output, parsers._basic_standard_container)
+        assert isinstance(output, parsers.BasicVariant)
         assert output.chrom == '1'
         assert output.pos == 100
         assert output.ref is None

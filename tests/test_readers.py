@@ -57,7 +57,7 @@ class TestIterableReader:
     def test_unparsed_mode_cannot_filter(self):
         reader = readers.IterableReader([], parser=None)
         with pytest.raises(exceptions.ConfigurationException):
-            reader.add_filter(0, 'value')
+            reader.add_filter('chrom', 'value')
 
     def test_named_filter_support_depends_on_parser(self):
         reader = readers.IterableReader([], parser=parsers.TupleLineParser())
@@ -160,16 +160,16 @@ class TestFileReader:
 
         iterator = iter(simple_file_reader)
         first_row = next(iterator)
-        assert isinstance(first_row, tuple), "rows are parsed as tuples"
+        assert isinstance(first_row, object), "rows are parsed as tuples"
 
     def test_can_iterate_twice_over_same_file(self, simple_file_reader):
         iterator = iter(simple_file_reader)
         first_row = next(iterator)
-        assert first_row[0] == "1", "Read first data row on first iteration"
+        assert first_row.chrom == "1", "Read first data row on first iteration"
 
         iterator = iter(simple_file_reader)
         first_row = next(iterator)
-        assert first_row[0] == "1", "Read first data row on second iteration"
+        assert first_row.chrom == "1", "Read first data row on second iteration"
 
     def test_writer_protects_from_overwriting(self, simple_file_reader):
         with pytest.raises(exceptions.ConfigurationException):
@@ -188,14 +188,6 @@ class TestFiltering:
     def test_filter_criteria_with_value(self, simple_file_reader):
         # Can define a filter that exactly matches a value
         simple_file_reader.add_filter("chrom", "1")
-        assert len(simple_file_reader._filters) == 1
-
-        # File will act on it
-        assert len(list(simple_file_reader)) == 7, "output was restricted to the expected rows"
-
-    def test_can_filter_by_tuple_index(self, simple_file_reader):
-        # Can apply filters even when the parsed output does not support accessing fields by name
-        simple_file_reader.add_filter(0, "1")  # because chr is the first field in the named tuple
         assert len(simple_file_reader._filters) == 1
 
         # File will act on it

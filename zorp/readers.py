@@ -60,18 +60,16 @@ class BaseReader(abc.ABC):
     # Internal helper methods; should not need to override below this line
     def _apply_filters(self, parsed_row: tuple) -> bool:
         """Determine whether a given row satisfies all of the applied filters"""
-        if not len(self._filters):
-            return True
+        return all(test_func(getattr(parsed_row, field_name, None), parsed_row)
+                   for field_name, test_func in self._filters)
 
-        return all(test_func(parsed_row[position], parsed_row)
-                   for position, test_func in self._filters)
-
-    def _make_generator(self, iterator: ty.Iterator[str]) -> ty.Iterator[ty.Union[str, tuple]]:
+    def _make_generator(self, iterator: ty.Iterator[str]) -> ty.Iterator:
         """
         Process the output of an iterable before returning it. In the usual case where a parser is provided,
             this will parse the row, apply filter criteria, and exclude any rows with errors (though errors will be
             available for inspection later)
         """
+        use_filters = len(self._filters)
         for i, row in enumerate(iterator):
             if not row:
                 # Skip blank lines (eg at end of file)
@@ -91,29 +89,16 @@ class BaseReader(abc.ABC):
                         raise exceptions.TooManyBadLinesException(error_list=self.errors)
                     continue
 
-                if not self._apply_filters(parsed):
+                if use_filters and not self._apply_filters(parsed):  # avoid expensive function call if no filters used
                     continue
                 yield parsed
-
-    def _field_name_to_index(self, field_name: ty.Union[int, str]) -> int:
-        """
-        Convert between tuple indices (how data is stored) and human-friendly field names as provided by the parser
-        """
-        if isinstance(field_name, int):
-            return field_name
-        elif not hasattr(self._parser, 'fields'):
-            raise exceptions.ConfigurationException('Specified parser does not support accessing properties by name')
-        elif field_name not in self._parser.fields:  # type: ignore
-            raise exceptions.ConfigurationException(f'Parser does not define a field named {field_name}')
-        else:
-            return self._parser.fields.index(field_name)  # type: ignore
 
     ######
     # User-facing API
     def add_filter(self,
                    field_name: ty.Union[int, str],
                    match: ty.Union[ty.Any,
-                                   ty.Callable[[ty.Any, tuple], bool]]) -> 'BaseReader':
+                                   ty.Callable[[ty.Any, object], bool]]) -> 'BaseReader':
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
 
@@ -123,12 +108,15 @@ class BaseReader(abc.ABC):
          - A value that will exactly match, or
          - A function that specifies whether to accept this row. Method signature: (val, row) => bool
         """
-        if not self._parser:
-            raise exceptions.ConfigurationException("Reader must specify a parser in order to use filtering features.")
+        if not self._parser or not hasattr(self._parser, 'fields'):
+            raise exceptions.ConfigurationException(
+                "Filtering features require specifying a parser that supports name-based field access.")
 
-        position = self._field_name_to_index(field_name)
+        if field_name not in self._parser.fields:
+            raise exceptions.ConfigurationException("The parser does not have a field by this name")
+
         self._filters.append([
-            position,
+            field_name,
             match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match  # type: ignore
         ])
         return self
@@ -150,7 +138,6 @@ class BaseReader(abc.ABC):
         TODO: In the initial version, we hardcode a preset mode of "vcf" for tabix indexing.
             There's no good parser-agnostic way to set the tabix options, so we may just have to proxy the pysam kwargs
 
-        # TODO: How should we represent missing or invalid data (like pvalue = 'NA')?
         # TODO: This isn't a universal converter, eg the column headers are still dictated by the parser (not the user)
         """
         if make_tabix:
@@ -166,14 +153,13 @@ class BaseReader(abc.ABC):
                 raise exceptions.ConfigurationException('Must provide column names to write')
 
         has_headers = any(isinstance(field, str) for field in columns)
-        column_indices = [self._field_name_to_index(field) for field in columns]
         with open(out_fn, 'w') as f:
             if has_headers:
                 f.write('#')
                 f.write(delimiter.join(str(name) for name in columns))
                 f.write('\n')
             for row in self:
-                f.write(delimiter.join(str(row[i]) for i in column_indices))
+                f.write(delimiter.join(str(getattr(row, field_name)) for field_name in columns))
                 f.write('\n')
 
         if make_tabix:
@@ -181,7 +167,7 @@ class BaseReader(abc.ABC):
         else:
             return out_fn
 
-    def __iter__(self) -> ty.Iterator[ty.Union[str, tuple]]:
+    def __iter__(self) -> ty.Iterator:
         """
         The parser instance can be treated as an iterable over raw or parsed lines (based on options)
         """

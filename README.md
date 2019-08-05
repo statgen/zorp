@@ -26,7 +26,7 @@ reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser, s
 reader.add_filter('chrom', '19')
 reader.add_filter('neg_log_pvalue', lambda val, line: val > 7.301)
 
-# Iteration returns tuples (or namedtuples) of cleaned, parsed data
+# Iteration returns containers of cleaned, parsed data (with fields accessible by name).
 for row in reader:
     print(row.chrom)
 

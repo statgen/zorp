@@ -2,7 +2,6 @@
 Parsers: handle the act of reading one entity (such as line)
 """
 import abc
-import inspect
 import math
 import numbers
 import typing as ty
@@ -16,20 +15,28 @@ from .const import MISSING_VALUES
 from . import exceptions, parser_utils
 
 
-class _basic_standard_container(ty.NamedTuple):
-    """Store GWAS results in a predictable format, with only the minimum fields"""
-    chrom: str
-    pos: int
-    ref: str
-    alt: str
-    neg_log_pvalue: float
+class BasicVariant:
+    """
+    Store GWAS results in a predictable format, with a minimal set of fields; optimize for name-based attribute access
+    """
+    # TODO: DRY these lists; this is a bit silly
+    # Slots specify the data  this holds (a performance optimization); _fields is human-curated list
+    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue')
+    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue')  # Fields that allow filtering/serialization
 
-    # # Optional fields for future expansion
-    # af: float
-    # beta: float
-    # stderr: float
-    # marker: str
-    # rsid: str
+    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue):
+        self.chrom: str = chrom
+        self.pos: int = pos
+        self.ref: str = ref
+        self.alt: str = alt
+        self.neg_log_pvalue: float = neg_log_pvalue
+
+        # # Optional fields for future expansion
+        # af: float
+        # beta: float
+        # stderr: float
+        # marker: str
+        # rsid: str
 
     @property
     def pvalue(self) -> ty.Union[float, None]:
@@ -52,15 +59,13 @@ class _basic_standard_container(ty.NamedTuple):
         ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
         return f'{self.chrom}:{self.pos}{ref_alt}'
 
-    @classmethod
-    def _to_serialize(cls) -> ty.List[str]:
-        return [name for name, value in inspect.getmembers(cls) if inspect.isdatadescriptor(value)]
+    def __iter__(self):
+        # Features like "write a line of text" may want to access fields in a predictable order
+        return self.__slots__
 
     def to_dict(self):
-        # A special version of asdict that also includes derived properties
-        # FIXME: This method exists, but it is rather staggeringly slow. Only use as a last resort.
-        #  This should be reimplemented to generate the list of attributes as part of the class, not the instance
-        return {name: getattr(self, name) for name in self._to_serialize()}
+        # Some tools expect the data in a mutable form (eg dicts)
+        return {s: getattr(self, s, None) for s in self._fields}
 
 
 class AbstractLineParser(abc.ABC):
@@ -69,7 +74,7 @@ class AbstractLineParser(abc.ABC):
     This base class is reserved for future refactoring
     """
     def __init__(self, *args,
-                 container: ty.Callable[..., ty.Union[tuple, ty.NamedTuple]] = tuple,
+                 container: ty.Callable[..., object] = tuple,
                  **kwargs):
         """
         :param container: A data structure (eg namedtuple) that will be populated with the parsed results
@@ -102,7 +107,12 @@ class AbstractLineParser(abc.ABC):
 
 
 class TupleLineParser(AbstractLineParser):
-    """Parse a line of text and return a tuple of the fields. Performs no type coercion"""
+    """
+    Parse a line of text and return a tuple of the fields. Performs no type coercion
+
+    This isn't recommended for everyday parsing, but it is useful internally for format detection (where we need to
+        split columns of data, but aren't yet ready to clean and assign meaning to the values)
+    """
     def __init__(self, *args, container: ty.Callable = tuple, delimiter='\t', **kwargs):
         super(TupleLineParser, self).__init__(*args, container=container, **kwargs)
         self._delimiter = delimiter
@@ -124,7 +134,7 @@ class GenericGwasLineParser(TupleLineParser):
     Constructor expects human-friendly column numbers (first = column 1)
     """
     def __init__(self, *args,
-                 container: ty.Callable[..., tuple] = _basic_standard_container,
+                 container: ty.Callable[..., BasicVariant] = BasicVariant,
                  chr_col: int = None, pos_col: int = None, ref_col: int = None, alt_col: int = None,
                  marker_col: int = None, rsid_col: int = None,
                  pval_col: int = None,
@@ -221,17 +231,18 @@ class QuickGwasLineParser:
     A "fast path" parser used for pre-standardized input. This parser gains speed by dispensing with
     all the usual re-use and "bad data" tolerance of a more generic tool
     """
-    def __init__(self, *, container: ty.Callable[..., tuple] = _basic_standard_container):
+    def __init__(self, *, container: ty.Type[BasicVariant] = BasicVariant):
         # The only thing that can be configured is the container (in case we want to support extra fields in the future)
-        self._container = _basic_standard_container
+        self._container = container
 
     @property
-    def fields(self) -> ty.Container:
+    def fields(self) -> ty.Iterable:
         return self._container._fields  # type: ignore
 
-    def __call__(self, row: str) -> _basic_standard_container:
-        # Assume the file format is *exactly* standardized with no extra fields of any kind
-        chrom, pos, ref, alt, log_pvalue = row.strip().split()
+    def __call__(self, row: str) -> BasicVariant:
+        # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing
+        #   spaces, and all uses of the delimiter mean what we think they do
+        chrom, pos, ref, alt, log_pvalue = row.split()
         pos = int(pos)
         if ref in MISSING_VALUES:
             ref = None
@@ -241,7 +252,7 @@ class QuickGwasLineParser:
 
         log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
 
-        return _basic_standard_container(chrom, pos, ref, alt, log_pvalue)
+        return self._container(chrom, pos, ref, alt, log_pvalue)
 
 
 # An example parser pre-configured for the LocusZoom standard file format
