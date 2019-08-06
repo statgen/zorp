@@ -31,9 +31,9 @@ class BaseReader(abc.ABC):
         """
         :param source: How to find the source data (implementation detail of the subclass)
         :param parser: A callable that parses a line of text. If `None`, the reader will not attempt to parse.
-        :param skip_rows:
-        :param skip_errors:
-        :param max_errors:
+        :param skip_rows: How many header rows to skip when iterating over the entire file
+        :param skip_errors: Whether to continue reading if a few bad lines are encountered
+        :param max_errors: How many bad lines to accept (in skip_errors mode) before giving up
         :param kwargs:
         """
         self._source = source
@@ -102,7 +102,7 @@ class BaseReader(abc.ABC):
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
 
-        Since the parser should return a namedtuple, can access the field either by name, or by column number
+        The `field_name` should match a field in whatever object the parser returns. (attribute, calc'd property, etc)
 
         `match` specified the criterion used to test this field/row. It can be:
          - A value that will exactly match, or
@@ -238,6 +238,11 @@ class TabixReader(BaseReader):
         return self._make_generator(iterator)
 
 
-def standard_gwas_reader(filename: str, **kwargs):
-    """Helper: generate a reader based on zorp's "standard" format of known column names and positions"""
-    return TabixReader(filename, parser=parsers.standard_gwas_parser_quick, skip_rows=1, **kwargs)
+def standard_gwas_reader(filename: str, *, parser=parsers.standard_gwas_parser_quick, **kwargs):
+    """
+    Helper: generate a reader based on zorp's "standard" format of known column names and positions
+
+    By default this uses the fast (but fragile) "quick" parser, which is not suitable unless the data exactly follows
+        the standard format. This may be replaced with a more tolerant parser if needed.
+    """
+    return TabixReader(filename, parser=parser, skip_rows=1, **kwargs)
