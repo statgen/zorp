@@ -154,13 +154,17 @@ class BaseReader(abc.ABC):
                 raise exceptions.ConfigurationException('Must provide column names to write')
 
         has_headers = any(isinstance(field, str) for field in columns)
+
+        # Special case rule: The writer renders missing data (the Python value `None`) as `.`
+        repr_missing = lambda v: '.' if v is None else v
         with open(out_fn, 'w') as f:
             if has_headers:
                 f.write('#')
                 f.write(delimiter.join(str(name) for name in columns))
                 f.write('\n')
             for row in self:
-                f.write(delimiter.join(str(getattr(row, field_name)) for field_name in columns))
+                f.write(delimiter.join(str(repr_missing(getattr(row, field_name)))
+                                       for field_name in columns))
                 f.write('\n')
 
         if make_tabix:

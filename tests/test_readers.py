@@ -77,6 +77,18 @@ class TestIterableReader:
         with open(out_fn, 'r') as f:
             assert f.readlines() == ["#chrom\n", "1\n", "2\n"]
 
+    def test_writer_represents_missing_data_correctly(self, tmpdir):
+        """The writer should represent explicit missing values as `.` (instead of eg Python None)"""
+        reader = readers.IterableReader(["1\t100\tA\tC\tNone", "2\t200\tA\tC\t."],
+                                        parser=parsers.standard_gwas_parser)
+        expected_fn = tmpdir / 'test.txt'
+        out_fn = reader.write(expected_fn, columns=['neg_log_pvalue'], make_tabix=False)
+
+        assert expected_fn == out_fn
+        assert os.path.isfile(out_fn), "Output filename exists"
+        with open(out_fn, 'r') as f:
+            assert f.readlines() == ["#neg_log_pvalue\n", ".\n", ".\n"]
+
     def test_can_write_tabixed_output(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
                                         parser=parsers.standard_gwas_parser)
