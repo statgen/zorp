@@ -59,11 +59,6 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException):
             reader.add_filter('chrom', 'value')
 
-    def test_named_filter_support_depends_on_parser(self):
-        reader = readers.IterableReader([], parser=parsers.TupleLineParser())
-        with pytest.raises(exceptions.ConfigurationException):
-            reader.add_filter("raw_tuples_dont_name_fields", "value")
-
     def test_named_filter_support_requires_field_with_name(self):
         reader = readers.IterableReader([], parser=parsers.standard_gwas_parser)
         with pytest.raises(exceptions.ConfigurationException):

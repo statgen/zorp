@@ -108,11 +108,12 @@ class BaseReader(abc.ABC):
          - A value that will exactly match, or
          - A function that specifies whether to accept this row. Method signature: (val, row) => bool
         """
-        if not self._parser or not hasattr(self._parser, 'fields'):
+        if not self._parser:
             raise exceptions.ConfigurationException(
                 "Filtering features require specifying a parser that supports name-based field access.")
 
-        if field_name not in self._parser.fields:
+        # Sanity check if possible, otherwise, just hope the parser returns something with named fields!
+        if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:
             raise exceptions.ConfigurationException("The parser does not have a field by this name")
 
         self._filters.append([
