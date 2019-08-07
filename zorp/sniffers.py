@@ -114,7 +114,7 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
 
     if log_p_col is not None and _validate_p(log_p_col, data, True):
         return {'pval_col': log_p_col + 1, 'is_log_pval': True}
-    elif p_col and _validate_p(p_col, data, False):
+    elif p_col is not None and _validate_p(p_col, data, False):
         return {'pval_col': p_col + 1, 'is_log_pval': False}
 
     # Could not auto-determine an appropriate pvalue column
@@ -130,7 +130,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     :return:
     """
     # Get from either a marker, or 4 separate columns
-    MARKER_FIELDS = ('snpid', 'marker', 'markerid', 'snpmarker')
+    MARKER_FIELDS = ('snpid', 'marker', 'markerid', 'snpmarker', 'chr:position')
     CHR_FIELDS = ('chrom', 'chr')
     POS_FIELDS = ('position', 'pos', 'begin', 'beg', 'bp', 'end', 'ps')
 
@@ -143,7 +143,8 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
 
     first_row = next(data)
     marker_col = find_column(MARKER_FIELDS, header_names)
-    if marker_col and parser_utils.parse_marker(first_row[marker_col], test=True):
+
+    if marker_col is not None and parser_utils.parse_marker(first_row[marker_col], test=True):
         return {'marker_col': marker_col + 1}
 
     # If single columns were incomplete, attempt to auto detect 4 separate columns. All 4 must

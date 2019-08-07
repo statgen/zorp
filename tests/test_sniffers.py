@@ -246,7 +246,6 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
-    # Template
     def test_parses_output_of_alisam_pipeline(self):
         data = _fixture_to_strings([
             ['MarkerName', 'chr', 'pos', 'ref', 'alt', 'minor.allele', 'maf', 'mac', 'n', 'pvalue', 'SNPID', 'BETA', 'SE', 'ALTFreq', 'SNPMarker'],
@@ -258,4 +257,16 @@ class TestFileFormatDetection:
         assert actual._parser._ref_col == 3, 'Found index of ref col'
         assert actual._parser._alt_col == 4, 'Found index of alt col'
         assert actual._parser._pval_col == 9, 'Found index of pval col'
+        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+    def test_parses_whatever_diagram_was_using(self):
+        # FIXME: If this format turns out to be common, we should improve it to fetch all four values, instead of just
+        #   the two that the marker will provide
+        data = _fixture_to_strings([
+            ['Chr:Position', 'Allele1', 'Allele2', 'Effect', 'StdErr', 'P-value', 'TotalSampleSize'],
+            ['5:29439275', 'T', 'C', '-0.0003', '0.015', '0.99', '111309'],
+        ])
+        actual = sniffers.guess_gwas(data)
+        assert actual._parser._marker_col == 0, 'Found index of marker col'
+        assert actual._parser._pval_col == 5, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
