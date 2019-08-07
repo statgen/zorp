@@ -242,18 +242,20 @@ class QuickGwasLineParser:
     def __call__(self, row: str) -> BasicVariant:
         # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing
         #   spaces, and all uses of the delimiter mean what we think they do
-        chrom, pos, ref, alt, log_pvalue = row.split()
-        pos = int(pos)
-        if ref in MISSING_VALUES:
-            ref = None
+        try:
+            chrom, pos, ref, alt, log_pvalue = row.split()
+            pos = int(pos)
+            if ref in MISSING_VALUES:
+                ref = None
 
-        if alt in MISSING_VALUES:
-            alt = None
+            if alt in MISSING_VALUES:
+                alt = None
 
-        log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
+            log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
+        except Exception as e:
+            raise exceptions.LineParseException(str(e), line=row)
 
         return self._container(chrom, pos, ref, alt, log_pvalue)
-
 
 # An example parser pre-configured for the LocusZoom standard file format
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
