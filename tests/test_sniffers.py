@@ -166,8 +166,8 @@ class TestFileFormatDetection:
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
     def test_parses_plink(self):
-        # Format: https: // www.cog - genomics.org / plink2 / formats
-        # Sample: https: // github.com / babelomics / babelomics / wiki / plink.assoc
+        # Format: https://www.cog-genomics.org/plink2/formats
+        # Sample: https://github.com/babelomics/babelomics/wiki/plink.assoc
         # h/t Josh Weinstock
         data = _fixture_to_strings([
             ['CHR', 'SNP', 'BP', 'A1', 'F_A', 'F_U', 'A2', 'CHISQ', 'P'],
