@@ -137,9 +137,19 @@ class TestFileFormatDetection:
         with pytest.raises(exceptions.SnifferException):
             sniffers.guess_gwas(data)
 
-    @pytest.mark.skip
     def test_parses_bolt_lmm(self):
-        pass
+        data = _fixture_to_strings([
+            ['SNP', 'CHR', 'BP', 'A1', 'A0', 'MAF', 'HWEP', 'INFO', 'BETA', 'SE', 'P'],
+            ['10:48698435_A_G', '10', '48698435', 'A', 'G', '0.01353', '0.02719', '0.960443', '0.0959329', '0.0941266', '3.3E-01']
+        ])
+
+        actual = sniffers.guess_gwas(data)
+        assert actual._parser._marker_col == 0, 'Found index of marker col'
+        assert actual._parser._pval_col == 10, 'Found index of pval col'
+        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 8, 'beta field detected'
+        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
     def test_parses_epacts(self):
         data = _fixture_to_strings([
@@ -251,7 +261,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
-    def test_parses_handles_a_mystery_format(self):
+    def test_parses_a_mystery_format(self):
         # TODO: Identify the program used and make test more explicit
         # FIXME: This test underscores difficulty of reliable ref/alt detection- a1 comes
         #   before a0, but it might be more valid to switch the order of these columns. Leave meaning up to the user.
