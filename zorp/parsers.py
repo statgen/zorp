@@ -21,10 +21,10 @@ class BasicVariant:
     """
     # TODO: DRY these lists; this is a bit silly
     # Slots specify the data  this holds (a performance optimization); _fields is human-curated list
-    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue')
-    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue')  # Fields that allow filtering/serialization
+    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta')
+    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta')  # Fields that allow filtering/serialization
 
-    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue):
+    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue, beta, stderr_beta):
         self.chrom: str = chrom
         self.pos: int = pos
         self.ref: str = ref
@@ -33,9 +33,8 @@ class BasicVariant:
 
         # # Optional fields for future expansion
         # af: float
-        # beta: float
-        # stderr: float
-        # marker: str
+        self.beta: float = beta
+        self.stderr_beta: float = stderr_beta
         # rsid: str
 
     @property
@@ -139,7 +138,7 @@ class GenericGwasLineParser(TupleLineParser):
                  marker_col: int = None, rsid_col: int = None,
                  pval_col: int = None,
                  # Optional fields
-                 af_col: int = None, beta_col: int = None, stderr_col: int = None,
+                 beta_col: int = None, stderr_col: int = None,
                  # Other configuration
                  is_log_pval: bool = False,
                  **kwargs):
@@ -165,7 +164,6 @@ class GenericGwasLineParser(TupleLineParser):
 
         self._pval_col = _human_to_zero(pval_col)
 
-        self._af_col = _human_to_zero(af_col)
         self._beta_col = _human_to_zero(beta_col)
         self._stderr_col = _human_to_zero(stderr_col)
 
@@ -206,10 +204,24 @@ class GenericGwasLineParser(TupleLineParser):
 
         pval = values[self._pval_col]
 
+        # Some optional fields
+        beta = None
+        stderr_beta = None
+
+        if self._beta_col is not None:
+            beta = values[self._beta_col]
+
+        if self._stderr_col is not None:
+            stderr_beta = values[self._stderr_col]
+
         # Perform type coercion
         try:
             log_pval = parser_utils.parse_pval_to_log(pval, is_log=self._is_log_pval)
             pos = int(pos)
+            if beta is not None:
+                beta = None if beta in MISSING_VALUES else float(beta)
+            if stderr_beta is not None:
+                stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=values)
 
@@ -220,7 +232,7 @@ class GenericGwasLineParser(TupleLineParser):
         if alt in MISSING_VALUES:
             alt = None
 
-        return chrom, pos, ref, alt, log_pval
+        return chrom, pos, ref, alt, log_pval, beta, stderr_beta
 
     def _output_container(self, values):
         return self._container(*values)
@@ -243,7 +255,19 @@ class QuickGwasLineParser:
         # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing
         #   spaces, and all uses of the delimiter mean what we think they do
         try:
-            chrom, pos, ref, alt, log_pvalue = row.split()
+            cols = row.split()
+            chrom, pos, ref, alt, log_pvalue = cols[:5]  # These fields are always required
+
+            # For fwd compatibility, the quick-parser will assume that new columns become mandatory & are append-only
+            if len(cols) > 5:
+                beta = cols[5]
+                stderr_beta = cols[6]
+                beta = None if beta in MISSING_VALUES else float(beta)
+                stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
+            else:
+                beta = None
+                stderr_beta = None
+
             pos = int(pos)
             if ref in MISSING_VALUES:
                 ref = None
@@ -255,12 +279,21 @@ class QuickGwasLineParser:
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=row)
 
-        return self._container(chrom, pos, ref, alt, log_pvalue)
+        return self._container(chrom, pos, ref, alt, log_pvalue, beta, stderr_beta)
 
-# An example parser pre-configured for the LocusZoom standard file format
-standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
+
+####
+# Example parsers pre-configured for the LocusZoom standard file format
+# Only check the "mandatory" fields
+standard_gwas_parser_basic = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
                                              pval_col=5, is_log_pval=True,
                                              delimiter='\t')
 
+# Parse the "full" standard format (including any additional fields added in the future)
+standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                             pval_col=5, is_log_pval=True,
+                                             beta_col=6, stderr_col=7,
+                                             delimiter='\t')
 
+# A "fast" standard parser
 standard_gwas_parser_quick = QuickGwasLineParser()

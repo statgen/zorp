@@ -152,6 +152,9 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 8, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col is None, 'No beta field detected'
+        assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
+
     def test_parses_metal(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],
@@ -164,6 +167,9 @@ class TestFileFormatDetection:
         assert actual._parser._alt_col == 3, 'Found index of alt col'
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 7, 'beta field detected'
+        assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
 
     def test_parses_plink(self):
         # Format: https://www.cog-genomics.org/plink2/formats
@@ -181,6 +187,9 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 8, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col is None, 'No beta field detected'
+        assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
+
     def test_parses_raremetal(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],
@@ -193,6 +202,9 @@ class TestFileFormatDetection:
         assert actual._parser._alt_col == 3, 'Found index of alt col'
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 7, 'Beta field detected'
+        assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
 
     def test_parses_raremetalworker(self):
         data = _fixture_to_strings([
@@ -207,6 +219,9 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 16, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col == 15, 'beta field detected'
+        assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
+
     def test_parses_rvtests(self):
         data = _fixture_to_strings([
             ['CHROM', 'POS', 'REF', 'ALT', 'N_INFORMATIVE', 'AF', 'INFORMATIVE_ALT_AC', 'CALL_RATE', 'HWE_PVALUE', 'N_REF', 'N_HET', 'N_ALT', 'U_STAT', 'SQRT_V_STAT', 'ALT_EFFSIZE', 'PVALUE'],
@@ -220,6 +235,9 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 15, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col == 14, 'beta field detected'
+        assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
+
     def test_parses_saige(self):
         data = _fixture_to_strings([
             ['CHR', 'POS', 'SNPID', 'Allele1', 'Allele2', 'AC_Allele2', 'AF_Allele2', 'N', 'BETA', 'SE', 'Tstat', 'p.value', 'p.value.NA', 'Is.SPA.converge', 'varT', 'varTstar'],
@@ -230,10 +248,13 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 11, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col == 8, 'beta field detected'
+        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
+
     def test_parses_handles_a_mystery_format(self):
         # TODO: Identify the program used and make test more explicit
         # FIXME: This test underscores difficulty of reliable ref/alt detection- a1 comes
-        #   before a0, but it might be more valid to switch the order of these columns
+        #   before a0, but it might be more valid to switch the order of these columns. Leave meaning up to the user.
         data = _fixture_to_strings([
             ['chr', 'rs', 'ps', 'n_mis', 'n_obs', 'allele1', 'allele0', 'af', 'beta', 'se', 'p_score'],
             ['1', 'rs75333668', '762320', '0', '3610', 'T', 'C', '0.013', '-5.667138e-02', '1.027936e-01', '5.814536e-01']
@@ -245,6 +266,9 @@ class TestFileFormatDetection:
         assert actual._parser._alt_col == 6, 'Found index of alt col'
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 8, 'beta field detected'
+        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
     def test_parses_output_of_alisam_pipeline(self):
         data = _fixture_to_strings([
@@ -259,6 +283,9 @@ class TestFileFormatDetection:
         assert actual._parser._pval_col == 9, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
 
+        assert actual._parser._beta_col == 11, 'beta field detected'
+        assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
+
     def test_parses_whatever_diagram_was_using(self):
         # FIXME: If this format turns out to be common, we should improve it to fetch all four values, instead of just
         #   the two that the marker will provide
@@ -270,3 +297,6 @@ class TestFileFormatDetection:
         assert actual._parser._marker_col == 0, 'Found index of marker col'
         assert actual._parser._pval_col == 5, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col  == 3, 'beta field detected'
+        assert actual._parser._stderr_col == 4, 'stderr_beta field detected'

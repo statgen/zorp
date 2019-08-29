@@ -16,7 +16,7 @@ from zorp import (
 @pytest.fixture
 def simple_tabix_reader():
     return readers.TabixReader(os.path.join(os.path.dirname(__file__), "data/sample.gz"),
-                               parser=parsers.standard_gwas_parser,
+                               parser=parsers.standard_gwas_parser_basic,
                                skip_rows=1)
 
 
@@ -24,7 +24,7 @@ def simple_tabix_reader():
 def simple_file_reader():
     return readers.TextFileReader(os.path.join(os.path.dirname(__file__),
                                                "data/pheweb-samples/has-fields-.txt"),
-                                  parser=parsers.standard_gwas_parser,
+                                  parser=parsers.standard_gwas_parser_basic,
                                   skip_rows=1)
 
 
@@ -68,7 +68,7 @@ class TestIterableReader:
     # Writes files
     def test_can_write_output(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
-                                        parser=parsers.standard_gwas_parser)
+                                        parser=parsers.standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn, columns=['chrom'], make_tabix=False)
 
@@ -80,7 +80,7 @@ class TestIterableReader:
     def test_writer_represents_missing_data_correctly(self, tmpdir):
         """The writer should represent explicit missing values as `.` (instead of eg Python None)"""
         reader = readers.IterableReader(["1\t100\tA\tC\tNone", "2\t200\tA\tC\t."],
-                                        parser=parsers.standard_gwas_parser)
+                                        parser=parsers.standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn, columns=['neg_log_pvalue'], make_tabix=False)
 
@@ -91,7 +91,7 @@ class TestIterableReader:
 
     def test_can_write_tabixed_output(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
-                                        parser=parsers.standard_gwas_parser)
+                                        parser=parsers.standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.gz'
         out_fn = reader.write(str(expected_fn), columns=['chrom', 'pos'], make_tabix=True)
 
@@ -107,12 +107,12 @@ class TestIterableReader:
 
     def test_writer_defaults_to_parser_columns(self, tmpdir):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
-                                        parser=parsers.standard_gwas_parser)
+                                        parser=parsers.standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn)
 
         with open(out_fn, 'r') as f:
-            assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\n'
+            assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\n'
 
     ######
     # Error handling

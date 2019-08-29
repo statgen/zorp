@@ -12,7 +12,7 @@ from zorp import (
 
 class TestStandardGwasParser:
     def test_parses_locuszoom_standard_format(self):
-        line = '1\t100\tA\tC\t10'
+        line = '1\t100\tA\tC\t10\t0.5\t0.5'
         output = parsers.standard_gwas_parser(line)
         assert isinstance(output, parsers.BasicVariant)
         assert output.chrom == '1'
@@ -22,21 +22,21 @@ class TestStandardGwasParser:
         assert output.pvalue == pytest.approx(1e-10)
 
     def test_enforces_pos_as_int(self):
-        line = '1\tNOPE\tA\tC\t0.05'
+        line = '1\tNOPE\tA\tC\t0.05\t1\t1'
         with pytest.raises(exceptions.LineParseException, match="invalid literal"):
             parsers.standard_gwas_parser(line)
 
     def test_enforces_readable_pvalue(self):
-        line = '1\t100\tA\tC\tNOPE'
+        line = '1\t100\tA\tC\tNOPE\t1\t1'
         with pytest.raises(exceptions.LineParseException, match="could not convert string to float"):
             parsers.standard_gwas_parser(line)
 
     def test_handles_missing_pvalues(self):
-        line = '1\t100\tA\tC\tNA'
+        line = '1\t100\tA\tC\tNA\t1\t1'
         p = parsers.standard_gwas_parser(line)
         assert p.pvalue is None, "Fills placeholder values with python None"
 
-    def test_can_convert_to_log(self):
+    def test_can_convert_to_logpvalue(self):
         line = '1\t100\tA\tC\t1'
         special_parser = parsers.GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
                                                        pval_col=5, is_log_pval=True,
@@ -54,6 +54,12 @@ class TestStandardGwasParser:
         assert p.ref == 'A', 'Finds ref'
         assert p.alt == 'C', 'Finds alt'
         assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'
+
+    def test_parses_beta_and_stderr(self):
+        line = '1\t100\tA\tC\t10\tNA\t0.1'
+        p = parsers.standard_gwas_parser(line)
+        assert p.beta is None, 'Handled missing value for beta'
+        assert p.stderr_beta == 0.1, 'Parsed stderr field'
 
     def test_warns_about_incorrect_delimiter(self):
         """
@@ -88,3 +94,16 @@ class TestQuickParser:
         assert output.ref is None
         assert output.alt is None
         assert math.isinf(output.neg_log_pvalue)
+
+    def test_fetches_extended_format_beta_stderr(self):
+        """Older files will have a few core columns. Newer files will have additional fields."""
+        line = '1\t100\tnull\tNone\tInfinity\t0.5\t0.1'
+        output = parsers.standard_gwas_parser_quick(line)
+        assert output.beta == 0.5, 'Parsed beta'
+        assert output.stderr_beta == 0.1, 'Parsed stderr'
+
+    def test_handles_explicit_missing_values_in_beta_stderr(self):
+        line = '1\t100\tnull\tNone\tInfinity\tNA\t0.1'
+        output = parsers.standard_gwas_parser_quick(line)
+        assert output.beta is None, 'Parsed beta'
+        assert output.stderr_beta == 0.1, 'Parsed stderr'

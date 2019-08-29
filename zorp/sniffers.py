@@ -96,9 +96,9 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
 
     data = itertools.islice(data_rows, 100)
 
-    def _validate_p(col: int, data: ty.Iterator, is_log: bool):
+    def _validate_p(col: int, data: ty.Iterator, is_log: bool) -> bool:
         # All values must be parseable
-        vals = [row[col] for row in data]  # missingToNull(data.map(row => row[col]))
+        vals = [row[col] for row in data]
         cleaned_vals = [None if val in const.MISSING_VALUES else val
                         for val in vals]
         try:
@@ -169,6 +169,37 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     return config
 
 
+def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
+    BETA_FIELDS = ('beta', 'effect_size', 'alt_effsize', 'effect')
+    STDERR_BETA_FIELDS = ('stderr', 'effect_size_sd', 'se')
+
+    data = itertools.islice(data_rows, 100)
+
+    def _validate_numeric(col: int, data: ty.Iterator) -> bool:
+        vals = [row[col] for row in data]
+        cleaned_vals = [val for val in vals
+                        if val not in const.MISSING_VALUES]
+        try:
+
+            for v in cleaned_vals:
+                float(v)
+        except:
+            return False
+        return True
+
+    beta_col = find_column(BETA_FIELDS, header_names, threshold=0)
+    stderr_col = find_column(STDERR_BETA_FIELDS, header_names, threshold=0)
+
+    ret = {}
+    if beta_col is not None and _validate_numeric(beta_col, data):
+        ret['beta_col'] = beta_col + 1
+
+    if stderr_col is not None and _validate_numeric(stderr_col, data):
+        ret['stderr_col'] = stderr_col + 1
+
+    return ret or None
+
+
 def get_reader(filename: ty.Union[ty.Iterable, str]) -> ty.Type[readers.BaseReader]:
     """Suggest an appropriate reader based on source of data: iterable, tabix, or text file"""
     if not isinstance(filename, str):
@@ -229,11 +260,18 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
 
         header_names[p_config['pval_col'] - 1] = None  # Remove this column from consideration for other matches
         position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
-        if p_config and position_config:
-            # Configure a reader and parser based on the auto-detected file options
-            options = {**p_config, **position_config}
-            parser = parsers.GenericGwasLineParser(**options)
-        else:
-            raise exceptions.SnifferException('Could not detect required columns from file format')
+
+        if position_config is None:
+            raise exceptions.SnifferException('Could not find SNP identifier columns (position or marker)')
+
+        for v in position_config.values():
+            header_names[v - 1] = None  # Remove columns from consideration
+
+        beta_config = get_effect_size_columns(header_names, data_reader)
+
+        # Configure a reader and parser based on the auto-detected file options
+        options = {**p_config, **position_config, **(beta_config or {})}
+
+        parser = parsers.GenericGwasLineParser(**options)
 
     return reader_class(filename, skip_rows=to_skip, parser=parser)
