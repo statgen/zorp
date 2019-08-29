@@ -95,6 +95,12 @@ def run():
     parser.add_argument('-a', '--alt_col', type=int, dest='alt_col',
                         help='Column number with altvar')
 
+    # Optional fields
+    parser.add_argument('--beta_col', type=int, dest='beta_col',
+                        help='Column number with beta (effect size)')
+    parser.add_argument('--stderr_col', type=int, dest='stderr_col',
+                        help='Column number with stderr of effect size')
+
     # This argument is always required
     parser.add_argument('-p', '--pval_col', type=int, dest='pval_col',
                         help='Column number with pvalue (or logpvalue)')
@@ -117,6 +123,10 @@ def run():
             'alt_col': args.alt_col,
             'pval_col': args.pval_col,
             'is_log_pval': args.is_log_pval,
+
+            # Optional args
+            'beta_col': args.beta_col,
+            'stderr_col': args.stderr_col
         },
         auto_config=args.auto,
         max_errors=args.max_errors,
