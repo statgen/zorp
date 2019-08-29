@@ -15,14 +15,18 @@ except ImportError:
 
 
 REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]+)?_?(.*)?')
+REGEX_PVAL = re.compile("([\d.\-]+)([\sxeE]*)([0-9\-]*)")
 
 
 def parse_pval_to_log(value, is_log=False):
-    """Parse a given number, and return the -log10 pvalue"""
+    """
+    Parse a given number, and return the -log10 pvalue
+    `is_log` should really be "is negative log", and is confusingly named for legacy reasons. FIXME: Change that
+    """
     if value in MISSING_VALUES or value is None:
         return None
 
-    val = float(value)  # TODO: use Ryan's utility to handle exponents
+    val = float(value)
 
     if is_log:  # Take as is
         return val
@@ -32,9 +36,27 @@ def parse_pval_to_log(value, is_log=False):
         raise ValueError('p value is not in the allowed range')
 
     # 0-values are explicitly allowed and will convert to infinity by design, as they often indicate underflow errors
-    #   in the GWAS program
+    #   in the input data.
     if val == 0:
-        return math.inf
+        # Determine whether underflow is due to the source data, or due to python reading in the number
+        if value == '0':
+            # The source data is bad, so insert an obvious placeholder value
+            return math.inf
+        else:
+            # h/t @welchr: aggressively turn the underflowing string value into -log10 via regex
+            # Only do this if absolutely necessary, because it is a performance hit
+            base, _, exponent = REGEX_PVAL.search(value).groups()
+            base = float(base)
+
+            if exponent != '':
+                exponent = float(exponent)
+            else:
+                exponent = 0
+
+            if base == 0:
+                return math.inf
+
+            return -(math.log10(float(base)) + float(exponent))
     else:
         return -math.log10(val)
 

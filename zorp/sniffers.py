@@ -235,7 +235,11 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
                delimiter: str = '\t',
                **kwargs) -> readers.BaseReader:
     """
-    Read tab delimited rows of data and return a set of options compatible with the GenericGwasLineParser class
+    Read tab delimited rows of data and return a fully configured reader/parser
+    This will try to identify the following options:
+    - Type of file (text, gzip, etc)
+    - Number of header rows (unless provided explicitly)
+    - How to parse the file (unless a parser is explicitly provided)
 
     Supports receiving an iterable (instead of filename), primarily to support unit testing
     """

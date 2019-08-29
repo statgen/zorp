@@ -7,6 +7,7 @@ import pytest
 from zorp import (
     exceptions,
     parsers,
+    parser_utils,
 )
 
 
@@ -107,3 +108,25 @@ class TestQuickParser:
         output = parsers.standard_gwas_parser_quick(line)
         assert output.beta is None, 'Parsed beta'
         assert output.stderr_beta == 0.1, 'Parsed stderr'
+
+
+class TestUtils:
+    def test_pval_to_log_sidesteps_python_underflow(self):
+        val = '1.93e-780'
+        res = parser_utils.parse_pval_to_log(val)
+        assert res == 779.7144426909922, 'Handled value that would otherwise have underflowed'
+
+    def test_pval_to_log_handles_external_underflow(self):
+        val = '0'
+        res = parser_utils.parse_pval_to_log(val)
+        assert res == math.inf, 'Provides a placeholder when the input data underflowed'
+
+    def test_pval_to_log_converts_to_log(self):
+        val = '0.1'
+        res = parser_utils.parse_pval_to_log(val)
+        assert res == 1, 'Converts a regular value correctly'
+
+    def test_pval_to_log_handles_already_log(self):
+        val = '7.3'
+        res = parser_utils.parse_pval_to_log(val, is_log=True)
+        assert res == 7.3, 'Given a string with -log10, converts data type but no other calculation'
