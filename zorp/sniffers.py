@@ -171,7 +171,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
 
 def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
     BETA_FIELDS = ('beta', 'effect_size', 'alt_effsize', 'effect')
-    STDERR_BETA_FIELDS = ('stderr', 'effect_size_sd', 'se')
+    STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'effect_size_sd', 'se')
 
     data = itertools.islice(data_rows, 100)
 
@@ -201,7 +201,7 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
 
 
 def get_reader(filename: ty.Union[ty.Iterable, str]) -> ty.Type[readers.BaseReader]:
-    """Suggest an appropriate reader based on source of data: iterable, tabix, or text file"""
+    """Suggest an appropriate reader class based on source of data: iterable, tabix, or text file"""
     if not isinstance(filename, str):
         return readers.IterableReader
 

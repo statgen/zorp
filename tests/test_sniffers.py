@@ -6,12 +6,15 @@ from zorp import exceptions, readers, sniffers
 
 
 def _fixture_to_strings(lines: list, delimiter: str = '\t') -> list:
-    """Helper so that our unit tests are a little more readable"""
+    """
+    Helper so that our unit tests are a little more readable. Real tabix files give delimited strings,
+        not lists of fields
+    """
     return [delimiter.join(line)
             for line in lines]
 
 
-class TestFormatDetection:
+class TestFiletypeDetection:
     def test_opens_gzip(self):
         fn = os.path.join(os.path.dirname(__file__), "data/sample.gz")
         reader = sniffers.get_reader(fn)
@@ -48,8 +51,8 @@ class TestHeaderDetection:
     def test_handles_lack_of_headers(self):
         reader = readers.IterableReader(['X\t100', 'X\t101'], parser=None)
         n, content = sniffers.get_headers(reader, delimiter='\t')
-        assert n == 0, 'Skipped two header rows'
-        assert content is None, 'Found correct header row'
+        assert n == 0, 'File has no header rows'
+        assert content is None, 'No header row, so headers are blank'
 
     def test_stops_header_search_after_limit(self):
         reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
@@ -129,7 +132,7 @@ class TestGetPvalColumn:
 
 
 class TestFileFormatDetection:
-    def test_warns_if_file_unreadable(self):
+    def test_warns_if_file_lacks_required_fields(self):
         data = _fixture_to_strings([
             ['rsid', 'pval'],
             ['rs1234', '0.5'],
@@ -137,7 +140,26 @@ class TestFileFormatDetection:
         with pytest.raises(exceptions.SnifferException):
             sniffers.guess_gwas(data)
 
-    def test_parses_bolt_lmm(self):
+    # Sample file formats/ sample data that Zorp should be able to detect
+    def test_can_guess_standard_format(self):
+        # Tracks the "standard format" defined as a convenience parser
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta'],
+            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1']
+        ])
+        actual = sniffers.guess_gwas(data)
+        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._pos_col == 1, 'Found index of pos col'
+        assert actual._parser._ref_col == 2, 'Found index of ref col'
+        assert actual._parser._alt_col == 3, 'Found index of alt col'
+
+        assert actual._parser._pval_col == 4, 'Found index of pval col'
+        assert actual._parser._is_log_pval is True, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 5, 'beta field detected'
+        assert actual._parser._stderr_col == 6, 'stderr_beta field detected'
+
+    def test_can_guess_bolt_lmm(self):
         data = _fixture_to_strings([
             ['SNP', 'CHR', 'BP', 'A1', 'A0', 'MAF', 'HWEP', 'INFO', 'BETA', 'SE', 'P'],
             ['10:48698435_A_G', '10', '48698435', 'A', 'G', '0.01353', '0.02719', '0.960443', '0.0959329', '0.0941266', '3.3E-01']
@@ -151,7 +173,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
-    def test_parses_epacts(self):
+    def test_can_guess_epacts(self):
         data = _fixture_to_strings([
             ['#CHROM', 'BEGIN', 'END', 'MARKER_ID', 'NS', 'AC', 'CALLRATE', 'MAF', 'PVALUE', 'SCORE', 'N.CASE', 'N.CTRL', 'AF.CASE', 'AF.CTRL'],
             ['20', '1610894', '1610894', '20:1610894_G/A_Synonymous:SIRPG', '266', '138.64', '1', '0.26061', '6.9939e-05', '3.9765', '145', '121', '0.65177', '0.36476']
@@ -165,7 +187,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
-    def test_parses_metal(self):
+    def test_can_guess_metal(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']
@@ -181,7 +203,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 7, 'beta field detected'
         assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
 
-    def test_parses_plink(self):
+    def test_can_guess_plink(self):
         # Format: https://www.cog-genomics.org/plink2/formats
         # Sample: https://github.com/babelomics/babelomics/wiki/plink.assoc
         # h/t Josh Weinstock
@@ -200,7 +222,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
-    def test_parses_raremetal(self):
+    def test_can_guess_raremetal(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']
@@ -216,7 +238,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 7, 'Beta field detected'
         assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
 
-    def test_parses_raremetalworker(self):
+    def test_can_guess_raremetalworker(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N_INFORMATIVE', 'FOUNDER_AF', 'ALL_AF', 'INFORMATIVE_ALT_AC', 'CALL_RATE', 'HWE_PVALUE', 'N_REF', 'N_HET', 'N_ALT', 'U_STAT', 'SQRT_V_STAT', 'ALT_EFFSIZE', 'PVALUE'],
             ['9', '400066155', 'T', 'C', '432', '0', '0', '0', '1', '1', '432', '0', '0', 'NA', 'NA', 'NA', 'NA']
@@ -232,7 +254,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 15, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
-    def test_parses_rvtests(self):
+    def test_can_guess_rvtests(self):
         data = _fixture_to_strings([
             ['CHROM', 'POS', 'REF', 'ALT', 'N_INFORMATIVE', 'AF', 'INFORMATIVE_ALT_AC', 'CALL_RATE', 'HWE_PVALUE', 'N_REF', 'N_HET', 'N_ALT', 'U_STAT', 'SQRT_V_STAT', 'ALT_EFFSIZE', 'PVALUE'],
             ['1', '761893', 'G', 'T', '19292', '2.59624e-05:0.000655308:0', '1:1:0', '0.998289:0.996068:0.998381', '1:1:1', '19258:759:18499', '1:1:0', '0:0:0', '1.33113', '0.268484', '18.4664', '7.12493e-07']
@@ -248,7 +270,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 14, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
-    def test_parses_saige(self):
+    def test_can_guess_saige(self):
         data = _fixture_to_strings([
             ['CHR', 'POS', 'SNPID', 'Allele1', 'Allele2', 'AC_Allele2', 'AF_Allele2', 'N', 'BETA', 'SE', 'Tstat', 'p.value', 'p.value.NA', 'Is.SPA.converge', 'varT', 'varTstar'],
             ['chr1', '76792', 'chr1:76792:A:C', 'A', 'C', '57', '0.00168639048933983', '16900', '0.573681678183941', '0.663806747906141', '1.30193005902619', '0.387461577915637', '0.387461577915637', '1', '2.2694293866027', '2.41152256615949']
@@ -261,7 +283,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
-    def test_parses_a_mystery_format(self):
+    def test_can_guess_a_mystery_format(self):
         # TODO: Identify the program used and make test more explicit
         # FIXME: This test underscores difficulty of reliable ref/alt detection- a1 comes
         #   before a0, but it might be more valid to switch the order of these columns. Leave meaning up to the user.
@@ -280,7 +302,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
 
-    def test_parses_output_of_alisam_pipeline(self):
+    def test_can_guess_output_of_alisam_pipeline(self):
         data = _fixture_to_strings([
             ['MarkerName', 'chr', 'pos', 'ref', 'alt', 'minor.allele', 'maf', 'mac', 'n', 'pvalue', 'SNPID', 'BETA', 'SE', 'ALTFreq', 'SNPMarker'],
             ['chr1-281876-AC-A', 'chr1', '281876', 'AC', 'A', 'alt', '0.231428578495979', '1053', '2275', '0.447865946615285', 'rs72502741', '-0.0872936159370696', '0.115014743551501', '0.231428578495979', 'chr1:281876_AC/A']
@@ -296,7 +318,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col == 11, 'beta field detected'
         assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
 
-    def test_parses_whatever_diagram_was_using(self):
+    def test_can_guess_whatever_diagram_was_using(self):
         # FIXME: If this format turns out to be common, we should improve it to fetch all four values, instead of just
         #   the two that the marker will provide
         data = _fixture_to_strings([
