@@ -183,7 +183,7 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
 
             for v in cleaned_vals:
                 float(v)
-        except:
+        except Exception:
             return False
         return True
 
@@ -232,6 +232,7 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
 def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
                skip_rows=None,
                parser: parsers.AbstractLineParser = None,
+               parser_options: dict = None,
                delimiter: str = '\t',
                **kwargs) -> readers.BaseReader:
     """
@@ -239,12 +240,17 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
     This will try to identify the following options:
     - Type of file (text, gzip, etc)
     - Number of header rows (unless provided explicitly)
-    - How to parse the file (unless a parser is explicitly provided)
+    - How to parse the file (unless a parser is explicitly provided). Because some columns vary too much to sniff,
+        a "parser_overrides" option can be used to provide extra info used to create the parser.
 
     Supports receiving an iterable (instead of filename), primarily to support unit testing
     """
     reader_class = get_reader(filename)
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
+
+    if parser and parser_options:
+        raise exceptions.ConfigurationException(
+            'You have specified an exact `parser` and partial `parser_options`. These options are mutually exclusive.')
 
     # Don't try to guess parser options if options are explicitly provided. That would be silly.
     to_skip = n_headers if skip_rows is None else skip_rows
@@ -273,8 +279,8 @@ def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
 
         beta_config = get_effect_size_columns(header_names, data_reader)
 
-        # Configure a reader and parser based on the auto-detected file options
-        options = {**p_config, **position_config, **(beta_config or {})}
+        # Configure a reader and parser based on the auto-detected file options, plus any explicit argument overrides
+        options = {**p_config, **position_config, **(beta_config or {}), **(parser_options or {})}
 
         parser = parsers.GenericGwasLineParser(**options)
 

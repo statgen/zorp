@@ -21,10 +21,10 @@ class BasicVariant:
     """
     # TODO: DRY these lists; this is a bit silly
     # Slots specify the data  this holds (a performance optimization); _fields is human-curated list
-    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta')
-    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta')  # Fields that allow filtering/serialization
+    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
+    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
 
-    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue, beta, stderr_beta):
+    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
         self.chrom: str = chrom
         self.pos: int = pos
         self.ref: str = ref
@@ -35,6 +35,8 @@ class BasicVariant:
         # af: float
         self.beta: float = beta
         self.stderr_beta: float = stderr_beta
+
+        self.alt_allele_freq = alt_allele_freq
         # rsid: str
 
     @property
@@ -139,8 +141,10 @@ class GenericGwasLineParser(TupleLineParser):
                  pval_col: int = None,
                  # Optional fields
                  beta_col: int = None, stderr_col: int = None,
-                 # Other configuration
+                 allele_freq_col: int = None, allele_count_col: int = None, n_samples_col: int = None,
+                 # Other configuration options that apply to every row as constants
                  is_log_pval: bool = False,
+                 is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
                  **kwargs):
         super(GenericGwasLineParser, self).__init__(*args, **kwargs)
 
@@ -167,7 +171,12 @@ class GenericGwasLineParser(TupleLineParser):
         self._beta_col = _human_to_zero(beta_col)
         self._stderr_col = _human_to_zero(stderr_col)
 
+        self._allele_freq_col = _human_to_zero(allele_freq_col)
+        self._allele_count_col = _human_to_zero(allele_count_col)
+        self._n_samples = _human_to_zero(n_samples_col)
+
         self._is_log_pval = is_log_pval
+        self._is_alt_effect = is_alt_effect
 
         self.validate_config()
 
@@ -178,6 +187,14 @@ class GenericGwasLineParser(TupleLineParser):
         is_valid = has_position and (self._pval_col is not None)
         if not is_valid:
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
+
+        if self._allele_count_col and self._allele_freq_col:
+            raise exceptions.ConfigurationException('Allele count and frequency options are mutually exclusive')
+
+        if self._allele_count_col and not self._n_samples:
+            raise exceptions.ConfigurationException(
+                'To calculate allele frequency from counts, you must also provide n_samples')
+
         return is_valid
 
     def _split_fields(self, row: str):
@@ -207,12 +224,22 @@ class GenericGwasLineParser(TupleLineParser):
         # Some optional fields
         beta = None
         stderr_beta = None
+        alt_allele_freq = None
+        allele_count = None
+        n_samples = None
 
         if self._beta_col is not None:
             beta = values[self._beta_col]
 
         if self._stderr_col is not None:
             stderr_beta = values[self._stderr_col]
+
+        if self._allele_freq_col is not None:
+            alt_allele_freq = values[self._allele_freq_col]
+
+        if self._allele_count_col is not None:
+            allele_count = values[self._allele_count_col]
+            n_samples = values[self._n_samples]
 
         # Perform type coercion
         try:
@@ -222,6 +249,14 @@ class GenericGwasLineParser(TupleLineParser):
                 beta = None if beta in MISSING_VALUES else float(beta)
             if stderr_beta is not None:
                 stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
+
+            if self._allele_freq_col or self._allele_count_col:
+                alt_allele_freq = parser_utils.parse_allele_frequency(
+                    freq=alt_allele_freq,
+                    allele_count=allele_count,
+                    n_samples=n_samples,
+                    is_alt_effect=self._is_alt_effect
+                )
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=values)
 
@@ -232,7 +267,7 @@ class GenericGwasLineParser(TupleLineParser):
         if alt in MISSING_VALUES:
             alt = None
 
-        return chrom, pos, ref, alt, log_pval, beta, stderr_beta
+        return chrom, pos, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq
 
     def _output_container(self, values):
         return self._container(*values)
@@ -268,6 +303,11 @@ class QuickGwasLineParser:
                 beta = None
                 stderr_beta = None
 
+            if len(cols) > 7:
+                alt_allele_freq = cols[7]
+            else:
+                alt_allele_freq = None
+
             pos = int(pos)
             if ref in MISSING_VALUES:
                 ref = None
@@ -276,23 +316,27 @@ class QuickGwasLineParser:
                 alt = None
 
             log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
+
+            alt_allele_freq = parser_utils.parse_allele_frequency(freq=alt_allele_freq, is_alt_effect=True)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=row)
 
-        return self._container(chrom, pos, ref, alt, log_pvalue, beta, stderr_beta)
+        return self._container(chrom, pos, ref, alt, log_pvalue, beta, stderr_beta, alt_allele_freq)
 
 
 ####
 # Example parsers pre-configured for the LocusZoom standard file format
 # Only check the "mandatory" fields
 standard_gwas_parser_basic = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                             pval_col=5, is_log_pval=True,
-                                             delimiter='\t')
+                                                   pval_col=5, is_log_pval=True,
+                                                   delimiter='\t')
 
 # Parse the "full" standard format (including any additional fields added in the future)
 standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
                                              pval_col=5, is_log_pval=True,
                                              beta_col=6, stderr_col=7,
+                                             allele_freq_col=8,
+                                             is_alt_effect=True,
                                              delimiter='\t')
 
 # A "fast" standard parser

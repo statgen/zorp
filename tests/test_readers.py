@@ -106,13 +106,13 @@ class TestIterableReader:
         assert len(list(check_output.fetch('1', 1, 300))) == 1, 'Output file can be read with tabix features'
 
     def test_writer_defaults_to_parser_columns(self, tmpdir):
-        reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
+        reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
                                         parser=parsers.standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn)
 
         with open(out_fn, 'r') as f:
-            assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\n'
+            assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq\n'
 
     ######
     # Error handling

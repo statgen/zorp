@@ -156,7 +156,9 @@ class BaseReader(abc.ABC):
         has_headers = any(isinstance(field, str) for field in columns)
 
         # Special case rule: The writer renders missing data (the Python value `None`) as `.`
-        repr_missing = lambda v: '.' if v is None else v
+        def repr_missing(v):
+            return '.' if v is None else v
+
         with open(out_fn, 'w') as f:
             if has_headers:
                 f.write('#')
