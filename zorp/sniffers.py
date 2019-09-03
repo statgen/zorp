@@ -158,7 +158,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     ]
     config = {}
     for col_name, col_choices in to_find:
-        col = find_column(col_choices, headers_marked)
+        col = find_column(col_choices, headers_marked)  # type: ignore
         if col is None:
             return None
 

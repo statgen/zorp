@@ -284,7 +284,7 @@ class QuickGwasLineParser:
 
     @property
     def fields(self) -> ty.Iterable:
-        return self._container._fields  # type: ignore
+        return self._container._fields
 
     def __call__(self, row: str) -> BasicVariant:
         # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing

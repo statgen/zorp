@@ -19,7 +19,7 @@ REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]
 REGEX_PVAL = re.compile(r'([\d.\-]+)([\sxeE]*)([0-9\-]*)')
 
 
-def parse_pval_to_log(value, is_log=False) -> ty.Union[float, None]:
+def parse_pval_to_log(value: str, is_log: bool=False) -> ty.Union[float, None]:
     """
     Parse a given number, and return the -log10 pvalue
     `is_log` should really be "is negative log", and is confusingly named for legacy reasons. FIXME: Change that
@@ -50,21 +50,21 @@ def parse_pval_to_log(value, is_log=False) -> ty.Union[float, None]:
             base = float(base)
 
             if exponent != '':
-                exponent = float(exponent)
+                exp = float(exponent)
             else:
-                exponent = 0
+                exp = 0
 
             if base == 0:
                 return math.inf
 
-            return -(math.log10(float(base)) + float(exponent))
+            return -(math.log10(float(base)) + float(exp))
     else:
         return -math.log10(val)
 
 
 def parse_marker(value: str, test: bool = False) -> ty.Union[ty.Tuple[str, str, str, str], None]:
     match = REGEX_MARKER.fullmatch(value)
-    if match:
+    if match is not None:
         chrom, pos, ref, alt, _ = match.groups()
         return chrom, pos, ref, alt
 
@@ -95,17 +95,17 @@ def parse_allele_frequency(*,
     if freq is None and (allele_count in MISSING_VALUES or n_samples in MISSING_VALUES):  # Allele count parsing
         return None
     elif freq is None and allele_count is not None:
-        freq = int(allele_count) / int(n_samples)
+        allele_freq = int(allele_count) / int(n_samples)
     elif freq in MISSING_VALUES:  # Frequency-based parsing
         return None
     else:
-        freq = float(freq)
+        allele_freq = float(freq)
 
     # No matter how the frequency is specified, this stuff is always done
-    if freq < 0 or freq > 1:
+    if allele_freq < 0 or allele_freq > 1:
         raise ValueError('Allele frequency is not in the allowed range')
 
     if not is_alt_effect:  # Orient the frequency to the alt allele
-        return 1 - freq
+        return 1 - allele_freq
     else:
-        return freq
+        return allele_freq

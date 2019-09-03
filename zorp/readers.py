@@ -113,7 +113,7 @@ class BaseReader(abc.ABC):
                 "Filtering features require specifying a parser that supports name-based field access.")
 
         # Sanity check if possible, otherwise, just hope the parser returns something with named fields!
-        if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:
+        if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:  # type: ignore
             raise exceptions.ConfigurationException("The parser does not have a field by this name")
 
         self._filters.append([
@@ -124,7 +124,7 @@ class BaseReader(abc.ABC):
 
     def write(self,
               out_fn: str, *,
-              columns: ty.List[ty.Union[int, str]] = None,
+              columns: ty.Iterable[str] = None,
               delimiter: str = '\t',
               make_tabix: bool = False):
         """
