@@ -173,7 +173,7 @@ class GenericGwasLineParser(TupleLineParser):
 
         self._allele_freq_col = _human_to_zero(allele_freq_col)
         self._allele_count_col = _human_to_zero(allele_count_col)
-        self._n_samples = _human_to_zero(n_samples_col)
+        self._n_samples_col = _human_to_zero(n_samples_col)
 
         self._is_log_pval = is_log_pval
         self._is_alt_effect = is_alt_effect
@@ -191,7 +191,7 @@ class GenericGwasLineParser(TupleLineParser):
         if self._allele_count_col and self._allele_freq_col:
             raise exceptions.ConfigurationException('Allele count and frequency options are mutually exclusive')
 
-        if self._allele_count_col and not self._n_samples:
+        if self._allele_count_col and not self._n_samples_col:
             raise exceptions.ConfigurationException(
                 'To calculate allele frequency from counts, you must also provide n_samples')
 
@@ -239,7 +239,7 @@ class GenericGwasLineParser(TupleLineParser):
 
         if self._allele_count_col is not None:
             allele_count = values[self._allele_count_col]
-            n_samples = values[self._n_samples]
+            n_samples = values[self._n_samples_col]
 
         # Perform type coercion
         try:

@@ -19,7 +19,7 @@ REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]
 REGEX_PVAL = re.compile(r'([\d.\-]+)([\sxeE]*)([0-9\-]*)')
 
 
-def parse_pval_to_log(value: str, is_log: bool=False) -> ty.Union[float, None]:
+def parse_pval_to_log(value: str, is_log: bool = False) -> ty.Union[float, None]:
     """
     Parse a given number, and return the -log10 pvalue
     `is_log` should really be "is negative log", and is confusingly named for legacy reasons. FIXME: Change that
