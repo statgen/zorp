@@ -8,7 +8,7 @@ import typing as ty
 
 try:
     from fastnumbers import int, float
-except ImportError:
+except ImportError:  # pragma: no cover
     pass
 
 from .const import MISSING_VALUES
@@ -60,10 +60,6 @@ class BasicVariant:
         ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
         return f'{self.chrom}:{self.pos}{ref_alt}'
 
-    def __iter__(self):
-        # Features like "write a line of text" may want to access fields in a predictable order
-        return self.__slots__
-
     def to_dict(self):
         # Some tools expect the data in a mutable form (eg dicts)
         return {s: getattr(self, s, None) for s in self._fields}
@@ -97,7 +93,7 @@ class AbstractLineParser(abc.ABC):
         """Populate the output container with the extracted results"""
         pass
 
-    def __call__(self, row: str) -> tuple:
+    def __call__(self, row: str) -> BasicVariant:
         try:
             fields = self._split_fields(row)
             values = self._process_values(fields)
@@ -283,7 +279,7 @@ class QuickGwasLineParser:
         self._container = container
 
     @property
-    def fields(self) -> ty.Iterable:
+    def fields(self) -> ty.Iterable:  # pragma: no cover
         return self._container._fields
 
     def __call__(self, row: str) -> BasicVariant:

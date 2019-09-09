@@ -12,7 +12,7 @@ import typing as ty
 
 try:
     from fastnumbers import float
-except ImportError:
+except ImportError:  # pragma: no cover
     pass
 
 from .const import MISSING_VALUES
@@ -222,7 +222,7 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
         # TODO: Move some of this method to parser class to keep the reader domain-agnostic
         if not is_header(row, comment_char=comment_char, delimiter=delimiter):
             return i, last_row
-        elif i > max_check:
+        elif i >= max_check:
             raise exceptions.SnifferException(f'No headers found after limit of {max_check} rows')
         last_row = row
 

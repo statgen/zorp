@@ -11,7 +11,7 @@ from . import exceptions
 
 try:
     from fastnumbers import float
-except ImportError:
+except ImportError:  # pragma: no cover
     pass
 
 

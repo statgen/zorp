@@ -11,7 +11,56 @@ from zorp import (
 )
 
 
+class TestBasicVariantContainerHelpers:
+    @classmethod
+    def setup_class(cls):
+        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, 0.25)
+        container = parsers.BasicVariant(*vals)
+
+        cls.vals = vals
+        cls.container = container
+
+    def test_pvalue_helpers(self):
+        assert math.isinf(self.container.neg_log_pvalue)
+        assert self.container.pval == 0
+        assert self.container.pvalue == 0
+
+    def test_iterates_in_predictable_field_order(self):
+        iter_vals = tuple(v for v in self.vals)
+        assert iter_vals == self.vals
+
+    def test_dict_serialization(self):
+        actual = self.container.to_dict()
+        expected = {
+            'chrom': '1',
+            'pos': 2,
+            'ref': 'A',
+            'alt': 'G',
+            'neg_log_pvalue': math.inf,
+            'beta': 0.1,
+            'stderr_beta': 0.1,
+            'alt_allele_freq': 0.25,
+        }
+
+        assert actual == expected
+
+
 class TestStandardGwasParser:
+    def test_validates_arguments_required_fields(self):
+        with pytest.raises(exceptions.ConfigurationException, match='all required'):
+            parsers.GenericGwasLineParser(marker_col=1, pval_col=None)
+
+    def test_validates_arguments_optional_fields(self):
+        with pytest.raises(exceptions.ConfigurationException, match='all required'):
+            parsers.GenericGwasLineParser(marker_col=1, pval_col=None)
+
+    def test_validates_frequency_fields(self):
+        with pytest.raises(exceptions.ConfigurationException, match='mutually exclusive'):
+            parsers.GenericGwasLineParser(marker_col=1, pval_col=2, allele_count_col=3, allele_freq_col=4)
+
+        with pytest.raises(exceptions.ConfigurationException, match='n_samples'):
+            parsers.GenericGwasLineParser(marker_col=1, pval_col=2, allele_count_col=3, n_samples_col=None)
+
     def test_parses_locuszoom_standard_format(self):
         line = '1\t100\tA\tC\t10\t0.5\t0.5\t0.25'
         output = parsers.standard_gwas_parser(line)
@@ -26,6 +75,12 @@ class TestStandardGwasParser:
         line = '1\tNOPE\tA\tC\t0.05'
         with pytest.raises(exceptions.LineParseException, match="invalid literal"):
             parsers.standard_gwas_parser_basic(line)
+
+    def test_handles_missing_ref(self):
+        line = '1\t2\tNA\tnull\t0.05'
+        output = parsers.standard_gwas_parser_basic(line)
+        assert output.ref is None, 'Handles missing ref info'
+        assert output.alt is None, 'Handles missing alt info'
 
     def test_enforces_readable_pvalue(self):
         line = '1\t100\tA\tC\tNOPE'
@@ -71,6 +126,20 @@ class TestStandardGwasParser:
         with pytest.raises(exceptions.LineParseException, match="delimiter"):
             special_parser(line)
 
+    def test_parses_freq_from_counts(self):
+        line = 'chr2:100:A:C_anno\t.05\t25\t100'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2,
+                                                       allele_count_col=3, n_samples_col=4, is_alt_effect=False)
+        p = special_parser(line)
+        assert p.alt_allele_freq == 0.75, "Calculates frequency from counts and orients to alt allele"
+
+    def test_parses_freq_from_freq(self):
+        line = 'chr2:100:A:C_anno\t.05\t0.25'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2,
+                                                       allele_freq_col=3, is_alt_effect=True)
+        p = special_parser(line)
+        assert p.alt_allele_freq == 0.25, "Parses frequency as is"
+
 
 class TestQuickParser:
     """
@@ -96,6 +165,11 @@ class TestQuickParser:
         assert output.alt is None
         assert math.isinf(output.neg_log_pvalue)
 
+    def test_throws_errors_for_totally_invalid_line(self):
+        line = '1\t100\tA\tT\tBorkborkbork'
+        with pytest.raises(exceptions.LineParseException):
+            parsers.standard_gwas_parser_quick(line)
+
     def test_fetches_extended_format_beta_stderr(self):
         """Older files will have a few core columns. Newer files will have additional fields."""
         line = '1\t100\tnull\tNone\tInfinity\t0.5\t0.1'
@@ -117,6 +191,11 @@ class TestQuickParser:
 
 
 class TestUtils:
+    def test_parse_marker_fails_for_invalid_format(self):
+        val = 'A_B_C_D'
+        with pytest.raises(exceptions.LineParseException, match='marker format'):
+            parser_utils.parse_marker(val, test=False)
+
     def test_pval_to_log_sidesteps_python_underflow(self):
         val = '1.93e-780'
         res = parser_utils.parse_pval_to_log(val)
@@ -126,6 +205,10 @@ class TestUtils:
         val = '0'
         res = parser_utils.parse_pval_to_log(val)
         assert res == math.inf, 'Provides a placeholder when the input data underflowed'
+
+        val = '0.0'
+        res = parser_utils.parse_pval_to_log(val)
+        assert res == math.inf, 'Provides a placeholder when the input data underflowed (slow path)'
 
     def test_pval_to_log_converts_to_log(self):
         val = '0.1'

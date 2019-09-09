@@ -2,7 +2,7 @@
 import os
 import pytest
 
-from zorp import exceptions, readers, sniffers
+from zorp import exceptions, parsers, readers, sniffers
 
 
 def _fixture_to_strings(lines: list, delimiter: str = '\t') -> list:
@@ -56,12 +56,12 @@ class TestHeaderDetection:
 
     def test_stops_header_search_after_limit(self):
         reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
-        with pytest.raises(exceptions.SnifferException):
+        with pytest.raises(exceptions.SnifferException, match='after limit'):
             sniffers.get_headers(reader, delimiter='\t', max_check=1)
 
     def test_no_headers_in_short_file(self):
         reader = readers.IterableReader(['walrus', 'carpenter'], parser=None)
-        with pytest.raises(exceptions.SnifferException):
+        with pytest.raises(exceptions.SnifferException, match='entire file'):
             sniffers.get_headers(reader, delimiter='\t')
 
 
@@ -80,6 +80,9 @@ def pval_names():
 
 
 class TestFindColumn:
+    def test_levenshtein_handles_empty_string(self):
+        assert sniffers.levenshtein('', 'bob') == 3, 'Calculates differences if one string is empty'
+
     def test_finds_first_exact_match_for_synonym(self, pval_names):
         headers = ['chr', 'pos', 'p.value', 'marker']
         match = sniffers.find_column(pval_names, headers)
@@ -130,6 +133,14 @@ class TestGetPvalColumn:
         assert actual is None
 
 
+class TestGetEffectSizeColumns:
+    def test_invalid_data_doesnt_count_as_effect_size(self):
+        headers = ['beta']
+        data = [['bork']]
+        actual = sniffers.get_effect_size_columns(headers, data)
+        assert actual is None
+
+
 class TestFileFormatDetection:
     def test_warns_if_file_lacks_required_fields(self):
         data = _fixture_to_strings([
@@ -139,6 +150,14 @@ class TestFileFormatDetection:
         with pytest.raises(exceptions.SnifferException):
             sniffers.guess_gwas_generic(data)
 
+    def test_sniffer_warns_if_cant_find_pval(self):
+        data = _fixture_to_strings([
+            ['rsid', 'marker'],
+            ['rs1234', '0.5'],
+        ])
+        with pytest.raises(exceptions.SnifferException, match='pvalue'):
+            sniffers.guess_gwas_generic(data)
+
     def test_can_provide_extra_options_for_parser(self):
         data = _fixture_to_strings([
             ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'alt_allele_freq'],
@@ -146,6 +165,12 @@ class TestFileFormatDetection:
         ])
         actual = sniffers.guess_gwas_generic(data, parser_options={'allele_freq_col': 6})
         assert actual._parser._allele_freq_col == 5, 'Sniffer used an option that it could not have auto-detected'
+
+    def test_sniffer_validates_options(self):
+        with pytest.raises(exceptions.ConfigurationException, match='exclusive'):
+            sniffers.guess_gwas_generic(['1', '2'],
+                                        parser=parsers.standard_gwas_parser_basic,
+                                        parser_options={'option': 1})
 
     # Sample file formats/ sample data that Zorp should be able to detect
     def test_can_guess_standard_format(self):

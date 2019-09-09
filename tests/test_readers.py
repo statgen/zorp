@@ -114,6 +114,13 @@ class TestIterableReader:
         with open(out_fn, 'r') as f:
             assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq\n'
 
+    def test_writer_needs_to_know_column_names(self, tmpdir):
+        reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
+                                        parser=lambda line: ('A', 'B'))
+        expected_fn = tmpdir / 'test.txt'
+        with pytest.raises(exceptions.ConfigurationException, match='column names'):
+            reader.write(expected_fn)
+
     ######
     # Error handling
     def test_can_fail_on_first_error(self):
