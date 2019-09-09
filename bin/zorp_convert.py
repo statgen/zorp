@@ -39,8 +39,8 @@ def main(source: ty.Union[str, ty.Iterable],
         logger.error('Please provide all options required to parse the file, or use the --auto flag to guess')
         sys.exit(1)
 
-    reader = sniffers.guess_gwas(source, skip_rows=skip_rows, parser=parser,
-                                 skip_errors=skip_errors, max_errors=max_errors)
+    reader = sniffers.guess_gwas_generic(source, skip_rows=skip_rows, parser=parser,
+                                         skip_errors=skip_errors, max_errors=max_errors)
 
     # By design, this filters all missing pvalues out of the result file
     reader.add_filter('log_pvalue', lambda v, _: v is not None)

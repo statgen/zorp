@@ -137,14 +137,14 @@ class TestFileFormatDetection:
             ['rs1234', '0.5'],
         ])
         with pytest.raises(exceptions.SnifferException):
-            sniffers.guess_gwas(data)
+            sniffers.guess_gwas_generic(data)
 
     def test_can_provide_extra_options_for_parser(self):
         data = _fixture_to_strings([
             ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'alt_allele_freq'],
             ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1']
         ])
-        actual = sniffers.guess_gwas(data, parser_options={'allele_freq_col': 6})
+        actual = sniffers.guess_gwas_generic(data, parser_options={'allele_freq_col': 6})
         assert actual._parser._allele_freq_col == 5, 'Sniffer used an option that it could not have auto-detected'
 
     # Sample file formats/ sample data that Zorp should be able to detect
@@ -154,7 +154,7 @@ class TestFileFormatDetection:
             ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta'],
             ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1']
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
@@ -172,7 +172,7 @@ class TestFileFormatDetection:
             ['10:48698435_A_G', '10', '48698435', 'A', 'G', '0.01353', '0.02719', '0.960443', '0.0959329', '0.0941266', '3.3E-01']  # noqa: E501
         ])
 
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 0, 'Found index of marker col'
         assert actual._parser._pval_col == 10, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
@@ -186,7 +186,7 @@ class TestFileFormatDetection:
             ['20', '1610894', '1610894', '20:1610894_G/A_Synonymous:SIRPG', '266', '138.64', '1', '0.26061', '6.9939e-05', '3.9765', '145', '121', '0.65177', '0.36476']  # noqa: E501
         ])
 
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 3, 'Found index of marker col'
         assert actual._parser._pval_col == 8, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
@@ -199,7 +199,7 @@ class TestFileFormatDetection:
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],  # noqa: E501
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
@@ -218,7 +218,7 @@ class TestFileFormatDetection:
             ['CHR', 'SNP', 'BP', 'A1', 'F_A', 'F_U', 'A2', 'CHISQ', 'P'],
             ['1', 'rs3094315', '742429', 'C', '0.1509', '0.1394', 'T', '0.0759', '0.782', '1.097']
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 3, 'Found index of ref col'
@@ -234,7 +234,7 @@ class TestFileFormatDetection:
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],  # noqa: E501
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
@@ -250,7 +250,7 @@ class TestFileFormatDetection:
             ['#CHROM', 'POS', 'REF', 'ALT', 'N_INFORMATIVE', 'FOUNDER_AF', 'ALL_AF', 'INFORMATIVE_ALT_AC', 'CALL_RATE', 'HWE_PVALUE', 'N_REF', 'N_HET', 'N_ALT', 'U_STAT', 'SQRT_V_STAT', 'ALT_EFFSIZE', 'PVALUE'],  # noqa: E501
             ['9', '400066155', 'T', 'C', '432', '0', '0', '0', '1', '1', '432', '0', '0', 'NA', 'NA', 'NA', 'NA']
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
@@ -266,7 +266,7 @@ class TestFileFormatDetection:
             ['CHROM', 'POS', 'REF', 'ALT', 'N_INFORMATIVE', 'AF', 'INFORMATIVE_ALT_AC', 'CALL_RATE', 'HWE_PVALUE', 'N_REF', 'N_HET', 'N_ALT', 'U_STAT', 'SQRT_V_STAT', 'ALT_EFFSIZE', 'PVALUE'],  # noqa: E501
             ['1', '761893', 'G', 'T', '19292', '2.59624e-05:0.000655308:0', '1:1:0', '0.998289:0.996068:0.998381', '1:1:1', '19258:759:18499', '1:1:0', '0:0:0', '1.33113', '0.268484', '18.4664', '7.12493e-07']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
@@ -282,7 +282,7 @@ class TestFileFormatDetection:
             ['CHR', 'POS', 'SNPID', 'Allele1', 'Allele2', 'AC_Allele2', 'AF_Allele2', 'N', 'BETA', 'SE', 'Tstat', 'p.value', 'p.value.NA', 'Is.SPA.converge', 'varT', 'varTstar'],  # noqa: E501
             ['chr1', '76792', 'chr1:76792:A:C', 'A', 'C', '57', '0.00168639048933983', '16900', '0.573681678183941', '0.663806747906141', '1.30193005902619', '0.387461577915637', '0.387461577915637', '1', '2.2694293866027', '2.41152256615949']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 2, 'Found index of marker col'
         assert actual._parser._pval_col == 11, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'
@@ -298,7 +298,7 @@ class TestFileFormatDetection:
             ['chr', 'rs', 'ps', 'n_mis', 'n_obs', 'allele1', 'allele0', 'af', 'beta', 'se', 'p_score'],
             ['1', 'rs75333668', '762320', '0', '3610', 'T', 'C', '0.013', '-5.667138e-02', '1.027936e-01', '5.814536e-01']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 5, 'Found index of ref col'
@@ -314,7 +314,7 @@ class TestFileFormatDetection:
             ['MarkerName', 'chr', 'pos', 'ref', 'alt', 'minor.allele', 'maf', 'mac', 'n', 'pvalue', 'SNPID', 'BETA', 'SE', 'ALTFreq', 'SNPMarker'],  # noqa: E501
             ['chr1-281876-AC-A', 'chr1', '281876', 'AC', 'A', 'alt', '0.231428578495979', '1053', '2275', '0.447865946615285', 'rs72502741', '-0.0872936159370696', '0.115014743551501', '0.231428578495979', 'chr1:281876_AC/A']  # noqa: E501
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chr_col == 1, 'Found index of chr col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 3, 'Found index of ref col'
@@ -332,7 +332,7 @@ class TestFileFormatDetection:
             ['Chr:Position', 'Allele1', 'Allele2', 'Effect', 'StdErr', 'P-value', 'TotalSampleSize'],
             ['5:29439275', 'T', 'C', '-0.0003', '0.015', '0.99', '111309'],
         ])
-        actual = sniffers.guess_gwas(data)
+        actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 0, 'Found index of marker col'
         assert actual._parser._pval_col == 5, 'Found index of pval col'
         assert actual._parser._is_log_pval is False, 'Determined whether is log'

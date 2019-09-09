@@ -229,12 +229,12 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
     raise exceptions.SnifferException('No headers found after searching entire file')
 
 
-def guess_gwas(filename: ty.Union[ty.Iterable, str], *,
-               skip_rows=None,
-               parser: parsers.AbstractLineParser = None,
-               parser_options: dict = None,
-               delimiter: str = '\t',
-               **kwargs) -> readers.BaseReader:
+def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
+                       skip_rows=None,
+                       parser: parsers.AbstractLineParser = None,
+                       parser_options: dict = None,
+                       delimiter: str = '\t',
+                       **kwargs) -> readers.BaseReader:
     """
     Read tab delimited rows of data and return a fully configured reader/parser
     This will try to identify the following options:
