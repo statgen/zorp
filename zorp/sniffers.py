@@ -171,7 +171,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
 
 def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
     BETA_FIELDS = ('beta', 'effect_size', 'alt_effsize', 'effect')
-    STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'effect_size_sd', 'se')
+    STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'sebeta', 'effect_size_sd', 'se')
 
     data = itertools.islice(data_rows, 100)
 

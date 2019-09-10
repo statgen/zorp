@@ -219,6 +219,21 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
+    def can_guess_emmax_epacts(self):
+        """Fileformat sample provided by multiple tools"""
+        data = _fixture_to_strings([
+            ['#CHROM', 'BEG', 'END', 'MARKER_ID', 'NS', 'AC', 'CALLRATE', 'GENOCNT', 'MAF', 'STAT', 'PVALUE', 'BETA', 'SEBETA', 'R2'],  # noqa: E501
+            ['1', '762320', '762320', '1:762320_C/T_rs75333668', '3805', '100.00', '1.00000', '3707/96/2', '0.01314', '0.7942', '0.4271', '0.08034', '0.1012', '0.0001658']  # noqa: E501
+        ])
+
+        actual = sniffers.guess_gwas_generic(data)
+        assert actual._parser._marker_col == 3, 'Found index of marker col'
+        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 11, 'beta field detected'
+        assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
+
     def test_can_guess_metal(self):
         data = _fixture_to_strings([
             ['#CHROM', 'POS', 'REF', 'ALT', 'N', 'POOLED_ALT_AF', 'DIRECTION_BY_STUDY', 'EFFECT_SIZE', 'EFFECT_SIZE_SD', 'H2', 'PVALUE'],  # noqa: E501
