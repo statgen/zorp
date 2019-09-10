@@ -45,22 +45,83 @@ class TestBasicVariantContainerHelpers:
         assert actual == expected
 
 
-class TestStandardGwasParser:
+class TestGenericGwasParser:
     def test_validates_arguments_required_fields(self):
         with pytest.raises(exceptions.ConfigurationException, match='all required'):
-            parsers.GenericGwasLineParser(marker_col=1, pval_col=None)
+            parsers.GenericGwasLineParser(marker_col=1, pvalue_col=None)
 
     def test_validates_arguments_optional_fields(self):
         with pytest.raises(exceptions.ConfigurationException, match='all required'):
-            parsers.GenericGwasLineParser(marker_col=1, pval_col=None)
+            parsers.GenericGwasLineParser(marker_col=1, pvalue_col=None)
 
     def test_validates_frequency_fields(self):
         with pytest.raises(exceptions.ConfigurationException, match='mutually exclusive'):
-            parsers.GenericGwasLineParser(marker_col=1, pval_col=2, allele_count_col=3, allele_freq_col=4)
+            parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, allele_count_col=3, allele_freq_col=4)
 
         with pytest.raises(exceptions.ConfigurationException, match='n_samples'):
-            parsers.GenericGwasLineParser(marker_col=1, pval_col=2, allele_count_col=3, n_samples_col=None)
+            parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, allele_count_col=3, n_samples_col=None)
 
+    def test_can_convert_to_neglogpvalue(self):
+        line = '1\t100\tA\tC\t1'
+        special_parser = parsers.GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                                       pvalue_col=5, is_neg_log_pvalue=True,
+                                                       delimiter='\t')
+        p = special_parser(line)
+        assert p.neg_log_pvalue == pytest.approx(1), 'Converts -log to pvalue'
+        assert p.pvalue == pytest.approx(0.1), 'Converts -log to pvalue'
+
+    def test_can_convert_to_logpvalue_using_legacy_argument_names(self):
+        line = '1\t100\tA\tC\t1'
+        special_parser = parsers.GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                                       pval_col=5, is_log_pval=True,
+                                                       delimiter='\t')
+        p = special_parser(line)
+        assert p.neg_log_pvalue == pytest.approx(1), 'Parses -logp as is'
+        assert p.pvalue == pytest.approx(0.1), 'Converts -log to pvalue'
+
+    def test_can_find_chrom_using_legacy_argument_name(self):
+        line = '1\t100\tA\tC\t1'
+        special_parser = parsers.GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                                       pvalue_col=5, is_neg_log_pvalue=True,
+                                                       delimiter='\t')
+        p = special_parser(line)
+        assert p.chrom == '1'
+
+    def test_parses_marker_to_clean_format(self):
+        line = 'chr2:100:A:C_anno\t.05'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, delimiter='\t')
+        p = special_parser(line)
+        assert p.chrom == '2', 'Finds chromosome'
+        assert p.pos == 100, 'Finds position'
+        assert p.ref == 'A', 'Finds ref'
+        assert p.alt == 'C', 'Finds alt'
+        assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'
+
+    def test_warns_about_incorrect_delimiter(self):
+        """
+        Regression test: human-edited files may have a mix of tabs and spaces; this is hard to spot!
+        """
+        line = 'chr2:100:A:C_anno\t.05'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, delimiter=' ')
+        with pytest.raises(exceptions.LineParseException, match="delimiter"):
+            special_parser(line)
+
+    def test_parses_freq_from_counts(self):
+        line = 'chr2:100:A:C_anno\t.05\t25\t100'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2,
+                                                       allele_count_col=3, n_samples_col=4, is_alt_effect=False)
+        p = special_parser(line)
+        assert p.alt_allele_freq == 0.75, "Calculates frequency from counts and orients to alt allele"
+
+    def test_parses_freq_from_freq(self):
+        line = 'chr2:100:A:C_anno\t.05\t0.25'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2,
+                                                       allele_freq_col=3, is_alt_effect=True)
+        p = special_parser(line)
+        assert p.alt_allele_freq == 0.25, "Parses frequency as is"
+
+
+class TestStandardGwasParser:
     def test_parses_locuszoom_standard_format(self):
         line = '1\t100\tA\tC\t10\t0.5\t0.5\t0.25'
         output = parsers.standard_gwas_parser(line)
@@ -92,53 +153,12 @@ class TestStandardGwasParser:
         p = parsers.standard_gwas_parser_basic(line)
         assert p.pvalue is None, "Fills placeholder values with python None"
 
-    def test_can_convert_to_logpvalue(self):
-        line = '1\t100\tA\tC\t1'
-        special_parser = parsers.GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                                       pval_col=5, is_log_pval=True,
-                                                       delimiter='\t')
-        p = special_parser(line)
-        assert p.neg_log_pvalue == pytest.approx(1), 'Converts -log to pvalue'
-        assert p.pvalue == pytest.approx(0.1), 'Converts -log to pvalue'
-
-    def test_parses_marker_to_clean_format(self):
-        line = 'chr2:100:A:C_anno\t.05'
-        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2, delimiter='\t')
-        p = special_parser(line)
-        assert p.chrom == '2', 'Finds chromosome'
-        assert p.pos == 100, 'Finds position'
-        assert p.ref == 'A', 'Finds ref'
-        assert p.alt == 'C', 'Finds alt'
-        assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'
-
-    def test_parses_beta_and_stderr(self):
+    def test_parses_beta_stderr_and_af(self):
         line = '1\t100\tA\tC\t10\tNA\t0.1\t0.001'
         p = parsers.standard_gwas_parser(line)
         assert p.beta is None, 'Handled missing value for beta'
         assert p.stderr_beta == 0.1, 'Parsed stderr field'
-
-    def test_warns_about_incorrect_delimiter(self):
-        """
-        Regression test: human-edited files may have a mix of tabs and spaces; this is hard to spot!
-        """
-        line = 'chr2:100:A:C_anno\t.05'
-        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2, delimiter=' ')
-        with pytest.raises(exceptions.LineParseException, match="delimiter"):
-            special_parser(line)
-
-    def test_parses_freq_from_counts(self):
-        line = 'chr2:100:A:C_anno\t.05\t25\t100'
-        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2,
-                                                       allele_count_col=3, n_samples_col=4, is_alt_effect=False)
-        p = special_parser(line)
-        assert p.alt_allele_freq == 0.75, "Calculates frequency from counts and orients to alt allele"
-
-    def test_parses_freq_from_freq(self):
-        line = 'chr2:100:A:C_anno\t.05\t0.25'
-        special_parser = parsers.GenericGwasLineParser(marker_col=1, pval_col=2,
-                                                       allele_freq_col=3, is_alt_effect=True)
-        p = special_parser(line)
-        assert p.alt_allele_freq == 0.25, "Parses frequency as is"
+        assert p.alt_allele_freq == 0.001, 'Parsed alt allele frequency'
 
 
 class TestQuickParser:
@@ -198,7 +218,7 @@ class TestUtils:
 
     def test_pval_to_log_sidesteps_python_underflow(self):
         val = '1.93e-780'
-        res = parser_utils.parse_pval_to_log(val)
+        res = parser_utils.parse_pval_to_log(val, is_neg_log=False)
         assert res == 779.7144426909922, 'Handled value that would otherwise have underflowed'
 
     def test_pval_to_log_handles_external_underflow(self):
@@ -217,7 +237,7 @@ class TestUtils:
 
     def test_pval_to_log_handles_already_log(self):
         val = '7.3'
-        res = parser_utils.parse_pval_to_log(val, is_log=True)
+        res = parser_utils.parse_pval_to_log(val, is_neg_log=True)
         assert res == 7.3, 'Given a string with -log10, converts data type but no other calculation'
 
     def test_parse_freq_given_too_many_options(self):

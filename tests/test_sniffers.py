@@ -124,7 +124,7 @@ class TestGetPvalColumn:
         headers = ['logpvalue', 'pval']
         data = [[0.5, 0.5]]
         actual = sniffers.get_pval_column(headers, data)
-        assert actual == {'pval_col': 1, 'is_log_pval': True}
+        assert actual == {'pvalue_col': 1, 'is_neg_log_pvalue': True}
 
     def test_checks_that_pvalues_are_in_a_realistic_range_0_to_1(self):
         headers = ['pval']
@@ -180,13 +180,13 @@ class TestFileFormatDetection:
             ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
         assert actual._parser._alt_col == 3, 'Found index of alt col'
 
-        assert actual._parser._pval_col == 4, 'Found index of pval col'
-        assert actual._parser._is_log_pval is True, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 4, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
 
         assert actual._parser._beta_col == 5, 'beta field detected'
         assert actual._parser._stderr_col == 6, 'stderr_beta field detected'
@@ -199,8 +199,8 @@ class TestFileFormatDetection:
 
         actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 0, 'Found index of marker col'
-        assert actual._parser._pval_col == 10, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
@@ -213,8 +213,8 @@ class TestFileFormatDetection:
 
         actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 3, 'Found index of marker col'
-        assert actual._parser._pval_col == 8, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 8, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
@@ -225,12 +225,12 @@ class TestFileFormatDetection:
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
         assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pval_col == 10, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 7, 'beta field detected'
         assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
@@ -244,12 +244,12 @@ class TestFileFormatDetection:
             ['1', 'rs3094315', '742429', 'C', '0.1509', '0.1394', 'T', '0.0759', '0.782', '1.097']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of col'
+        assert actual._parser._chrom_col == 0, 'Found index of col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 3, 'Found index of ref col'
         assert actual._parser._alt_col == 6, 'Found index of alt col'
-        assert actual._parser._pval_col == 8, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 8, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
@@ -260,12 +260,12 @@ class TestFileFormatDetection:
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
         assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pval_col == 10, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 7, 'Beta field detected'
         assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
@@ -276,12 +276,12 @@ class TestFileFormatDetection:
             ['9', '400066155', 'T', 'C', '432', '0', '0', '0', '1', '1', '432', '0', '0', 'NA', 'NA', 'NA', 'NA']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
         assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pval_col == 16, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 16, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 15, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
@@ -292,12 +292,12 @@ class TestFileFormatDetection:
             ['1', '761893', 'G', 'T', '19292', '2.59624e-05:0.000655308:0', '1:1:0', '0.998289:0.996068:0.998381', '1:1:1', '19258:759:18499', '1:1:0', '0:0:0', '1.33113', '0.268484', '18.4664', '7.12493e-07']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 1, 'Found index of pos col'
         assert actual._parser._ref_col == 2, 'Found index of ref col'
         assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pval_col == 15, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 15, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 14, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
@@ -309,8 +309,8 @@ class TestFileFormatDetection:
         ])
         actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 2, 'Found index of marker col'
-        assert actual._parser._pval_col == 11, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 11, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
@@ -324,12 +324,12 @@ class TestFileFormatDetection:
             ['1', 'rs75333668', '762320', '0', '3610', 'T', 'C', '0.013', '-5.667138e-02', '1.027936e-01', '5.814536e-01']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 0, 'Found index of chr col'
+        assert actual._parser._chrom_col == 0, 'Found index of chr col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 5, 'Found index of ref col'
         assert actual._parser._alt_col == 6, 'Found index of alt col'
-        assert actual._parser._pval_col == 10, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 8, 'beta field detected'
         assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
@@ -340,12 +340,12 @@ class TestFileFormatDetection:
             ['chr1-281876-AC-A', 'chr1', '281876', 'AC', 'A', 'alt', '0.231428578495979', '1053', '2275', '0.447865946615285', 'rs72502741', '-0.0872936159370696', '0.115014743551501', '0.231428578495979', 'chr1:281876_AC/A']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chr_col == 1, 'Found index of chr col'
+        assert actual._parser._chrom_col == 1, 'Found index of chr col'
         assert actual._parser._pos_col == 2, 'Found index of pos col'
         assert actual._parser._ref_col == 3, 'Found index of ref col'
         assert actual._parser._alt_col == 4, 'Found index of alt col'
-        assert actual._parser._pval_col == 9, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 9, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 11, 'beta field detected'
         assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
@@ -359,8 +359,8 @@ class TestFileFormatDetection:
         ])
         actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._marker_col == 0, 'Found index of marker col'
-        assert actual._parser._pval_col == 5, 'Found index of pval col'
-        assert actual._parser._is_log_pval is False, 'Determined whether is log'
+        assert actual._parser._pvalue_col == 5, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col == 3, 'beta field detected'
         assert actual._parser._stderr_col == 4, 'stderr_beta field detected'

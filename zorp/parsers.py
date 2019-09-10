@@ -132,14 +132,22 @@ class GenericGwasLineParser(TupleLineParser):
     """
     def __init__(self, *args,
                  container: ty.Callable[..., BasicVariant] = BasicVariant,
-                 chr_col: int = None, pos_col: int = None, ref_col: int = None, alt_col: int = None,
-                 marker_col: int = None, rsid_col: int = None,
-                 pval_col: int = None,
+                 # Variant identifiers: marker OR individual
+                 chrom_col: int = None, chr_col: int = None,  # Legacy alias
+                 pos_col: int = None,
+                 ref_col: int = None,
+                 alt_col: int = None,
+                 marker_col: int = None,
+                 # Other required data
+                 pvalue_col: int = None, pval_col: int = None,  # Legacy alias
                  # Optional fields
-                 beta_col: int = None, stderr_col: int = None,
-                 allele_freq_col: int = None, allele_count_col: int = None, n_samples_col: int = None,
+                 beta_col: int = None,
+                 stderr_beta_col: int = None,
+
+                 allele_freq_col: int = None,  # Freq OR by two count fields
+                 allele_count_col: int = None, n_samples_col: int = None,
                  # Other configuration options that apply to every row as constants
-                 is_log_pval: bool = False,
+                 is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
                  is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
                  **kwargs):
         super(GenericGwasLineParser, self).__init__(*args, **kwargs)
@@ -154,24 +162,25 @@ class GenericGwasLineParser(TupleLineParser):
             else:
                 return value - 1
 
-        self._chr_col = _human_to_zero(chr_col)
+        # Chrom field has a legacy alias, allowing older parser configs to work.
+        self._chrom_col = _human_to_zero(chrom_col) if chrom_col is not None else _human_to_zero(chr_col)
         self._pos_col = _human_to_zero(pos_col)
         self._ref_col = _human_to_zero(ref_col)
         self._alt_col = _human_to_zero(alt_col)
 
         self._marker_col = _human_to_zero(marker_col)
-        self._rsid_col = _human_to_zero(rsid_col)
 
-        self._pval_col = _human_to_zero(pval_col)
+        # Support legacy alias for field name
+        self._pvalue_col = _human_to_zero(pvalue_col) if pvalue_col is not None else _human_to_zero(pval_col)
 
         self._beta_col = _human_to_zero(beta_col)
-        self._stderr_col = _human_to_zero(stderr_col)
+        self._stderr_col = _human_to_zero(stderr_beta_col)
 
         self._allele_freq_col = _human_to_zero(allele_freq_col)
         self._allele_count_col = _human_to_zero(allele_count_col)
         self._n_samples_col = _human_to_zero(n_samples_col)
 
-        self._is_log_pval = is_log_pval
+        self._is_neg_log_pvalue = is_neg_log_pvalue or is_log_pval  # The latter option is an alias for legacy reasons
         self._is_alt_effect = is_alt_effect
 
         self.validate_config()
@@ -179,8 +188,8 @@ class GenericGwasLineParser(TupleLineParser):
     def validate_config(self):
         """Ensures that a minimally working parser has been created"""
         has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
-                                                            for x in ('_chr_col', '_pos_col', '_ref_col', '_alt_col'))
-        is_valid = has_position and (self._pval_col is not None)
+                                                            for x in ('_chrom_col', '_pos_col', '_ref_col', '_alt_col'))
+        is_valid = has_position and (self._pvalue_col is not None)
         if not is_valid:
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
 
@@ -210,12 +219,12 @@ class GenericGwasLineParser(TupleLineParser):
             chrom, pos, ref, alt = parser_utils.parse_marker(values[self._marker_col])
         else:
             # TODO: Should we check for, and strip, the letters chr?
-            chrom = values[self._chr_col]
+            chrom = values[self._chrom_col]
             pos = values[self._pos_col]
             ref = values[self._ref_col]
             alt = values[self._alt_col]
 
-        pval = values[self._pval_col]
+        pval = values[self._pvalue_col]
 
         # Some optional fields
         beta = None
@@ -239,7 +248,7 @@ class GenericGwasLineParser(TupleLineParser):
 
         # Perform type coercion
         try:
-            log_pval = parser_utils.parse_pval_to_log(pval, is_log=self._is_log_pval)
+            log_pval = parser_utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
             pos = int(pos)
             if beta is not None:
                 beta = None if beta in MISSING_VALUES else float(beta)
@@ -311,7 +320,7 @@ class QuickGwasLineParser:
             if alt in MISSING_VALUES:
                 alt = None
 
-            log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_log=True)
+            log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_neg_log=True)
 
             alt_allele_freq = parser_utils.parse_allele_frequency(freq=alt_allele_freq, is_alt_effect=True)
         except Exception as e:
@@ -323,14 +332,14 @@ class QuickGwasLineParser:
 ####
 # Example parsers pre-configured for the LocusZoom standard file format
 # Only check the "mandatory" fields
-standard_gwas_parser_basic = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                                   pval_col=5, is_log_pval=True,
+standard_gwas_parser_basic = GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                                   pvalue_col=5, is_neg_log_pvalue=True,
                                                    delimiter='\t')
 
 # Parse the "full" standard format (including any additional fields added in the future)
-standard_gwas_parser = GenericGwasLineParser(chr_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                             pval_col=5, is_log_pval=True,
-                                             beta_col=6, stderr_col=7,
+standard_gwas_parser = GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
+                                             pvalue_col=5, is_neg_log_pvalue=True,
+                                             beta_col=6, stderr_beta_col=7,
                                              allele_freq_col=8,
                                              is_alt_effect=True,
                                              delimiter='\t')

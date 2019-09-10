@@ -86,7 +86,7 @@ def run():
     parser.add_argument('-m', '--marker_col', type=int, dest='marker_col',
                         help='Column number with marker (used to find chr, pos, ref, and alt)')
 
-    parser.add_argument('-c', '--chr_col', type=int, dest='chr_col',
+    parser.add_argument('-c', '--chrom_col', type=int, dest='chrom_col',
                         help='Column number with chromosome')
     parser.add_argument('-b', '--pos_col', type=int, dest='pos_col',
                         help='Column number with position')
@@ -98,13 +98,13 @@ def run():
     # Optional fields
     parser.add_argument('--beta_col', type=int, dest='beta_col',
                         help='Column number with beta (effect size)')
-    parser.add_argument('--stderr_col', type=int, dest='stderr_col',
+    parser.add_argument('--stderr_beta_col', type=int, dest='stderr_beta_col',
                         help='Column number with stderr of effect size')
 
     # This argument is always required
-    parser.add_argument('-p', '--pval_col', type=int, dest='pval_col',
+    parser.add_argument('-p', '--pvalue_col', type=int, dest='pvalue_col',
                         help='Column number with pvalue (or logpvalue)')
-    parser.add_argument('--is-log-pval', action='store_true', dest='is_log_pval',
+    parser.add_argument('--is-neg-log-pvalue', action='store_true', dest='is_neg_log_pvalue',
                         help='Is the pvalue data stored in -log10(p) form?')
 
     parser.add_argument('--compress', action='store_true', dest='compress',
@@ -117,16 +117,16 @@ def run():
         args.dest,
         {
             'marker_col': args.marker_col,
-            'chr_col': args.chr_col,
+            'chrom_col': args.chrom_col,
             'pos_col': args.pos_col,
             'ref_col': args.ref_col,
             'alt_col': args.alt_col,
-            'pval_col': args.pval_col,
-            'is_log_pval': args.is_log_pval,
+            'pvalue_col': args.pvalue_col,
+            'is_neg_log_pvalue': args.is_neg_log_pvalue,
 
             # Optional args
             'beta_col': args.beta_col,
-            'stderr_col': args.stderr_col
+            'stderr_beta_col': args.stderr_beta_col
         },
         auto_config=args.auto,
         max_errors=args.max_errors,

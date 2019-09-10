@@ -19,17 +19,16 @@ REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?):(\d+)[_:]?(\w+)?[/:|]?([^_]
 REGEX_PVAL = re.compile(r'([\d.\-]+)([\sxeE]*)([0-9\-]*)')
 
 
-def parse_pval_to_log(value: str, is_log: bool = False) -> ty.Union[float, None]:
+def parse_pval_to_log(value: str, is_neg_log: bool = False) -> ty.Union[float, None]:
     """
     Parse a given number, and return the -log10 pvalue
-    `is_log` should really be "is negative log", and is confusingly named for legacy reasons. FIXME: Change that
     """
     if value in MISSING_VALUES or value is None:
         return None
 
     val = float(value)
 
-    if is_log:  # Take as is
+    if is_neg_log:  # Take as is
         return val
 
     # Regular pvalue: validate and convert
@@ -39,7 +38,7 @@ def parse_pval_to_log(value: str, is_log: bool = False) -> ty.Union[float, None]
     # 0-values are explicitly allowed and will convert to infinity by design, as they often indicate underflow errors
     #   in the input data.
     if val == 0:
-        # Determine whether underflow is due to the source data, or due to python reading in the number
+        # Determine whether underflow is due to the source data, or value conversiuon
         if value == '0':
             # The source data is bad, so insert an obvious placeholder value
             return math.inf

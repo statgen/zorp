@@ -88,7 +88,7 @@ def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2):
 def get_pval_column(header_names: list, data_rows: ty.Iterable) \
         -> ty.Union[dict, None]:
     """
-    Return (column, is_log), or None/None if config not found
+    Return (column, is_neg_log), or None/None if config not found
     Column numbers are 1-based, for compatibility with parsers
     """
     LOGPVALUE_FIELDS = ('neg_log_pvalue', 'log_pvalue', 'log_pval', 'logpvalue')
@@ -103,7 +103,7 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
                         for val in vals]
         try:
             for v in cleaned_vals:
-                parser_utils.parse_pval_to_log(v, is_log=is_log)
+                parser_utils.parse_pval_to_log(v, is_neg_log=is_log)
         except Exception:
             return False
 
@@ -113,9 +113,9 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
     p_col = find_column(PVALUE_FIELDS, header_names)
 
     if log_p_col is not None and _validate_p(log_p_col, data, True):
-        return {'pval_col': log_p_col + 1, 'is_log_pval': True}
+        return {'pvalue_col': log_p_col + 1, 'is_neg_log_pvalue': True}
     elif p_col is not None and _validate_p(p_col, data, False):
-        return {'pval_col': p_col + 1, 'is_log_pval': False}
+        return {'pvalue_col': p_col + 1, 'is_neg_log_pvalue': False}
 
     # Could not auto-determine an appropriate pvalue column
     return None
@@ -151,7 +151,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     #  be found for this function to report a match.
     headers_marked = header_names.copy()
     to_find = [
-        ['chr_col', CHR_FIELDS],
+        ['chrom_col', CHR_FIELDS],
         ['pos_col', POS_FIELDS],
         ['ref_col', REF_FIELDS],
         ['alt_col', ALT_FIELDS],
@@ -195,7 +195,7 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
         ret['beta_col'] = beta_col + 1
 
     if stderr_col is not None and _validate_numeric(stderr_col, data):
-        ret['stderr_col'] = stderr_col + 1
+        ret['stderr_beta_col'] = stderr_col + 1
 
     return ret or None
 
@@ -268,7 +268,7 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
         if p_config is None:
             raise exceptions.SnifferException('Could not find required field: pvalue')
 
-        header_names[p_config['pval_col'] - 1] = None  # Remove this column from consideration for other matches
+        header_names[p_config['pvalue_col'] - 1] = None  # Remove this column from consideration for other matches
         position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
 
         if position_config is None:
