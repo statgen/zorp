@@ -1,5 +1,7 @@
 # ZORP: A helpful GWAS parser
 
+[![Build Status](https://api.travis-ci.org/abought/zorp.svg?branch=develop)](https://api.travis-ci.org/abought/zorp)
+
 ## Why?
 ZORP is intended to abstract away differences in file formats, and help you work with GWAS data from many 
 different sources.
@@ -55,7 +57,7 @@ To auto-detect columns based on a library of commonly known file formats:
 
 Or specify your data columns exactly: 
 
-`$ zorp-convert infile.txt --dest outfile.txt --compress  --skip-rows 1 --chr_col 1 --pos_col 2 --ref_col 3 --alt_col 4 pval_col 5`
+`$ zorp-convert infile.txt --dest outfile.txt --compress  --skip-rows 1 --chr_col 1 --pos_col 2 --ref_col 3 --alt_col 4 --pval_col 5 --beta_col 6 --stderr_col 7`
 
 
 ## Development
