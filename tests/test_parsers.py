@@ -14,7 +14,7 @@ from zorp import (
 class TestBasicVariantContainerHelpers:
     @classmethod
     def setup_class(cls):
-        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, 0.25)
+        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, 0.75)
         container = parsers.BasicVariant(*vals)
 
         cls.vals = vals
@@ -29,6 +29,12 @@ class TestBasicVariantContainerHelpers:
         iter_vals = tuple(v for v in self.vals)
         assert iter_vals == self.vals
 
+    def test_maf_means_minor_means_lt_half(self):
+        assert self.container.maf == 0.25, 'Correctly orients MAF to minor'
+
+        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, None)
+        assert parsers.BasicVariant(*vals).maf is None, "Doesn't convert missing data"
+
     def test_dict_serialization(self):
         actual = self.container.to_dict()
         expected = {
@@ -39,7 +45,7 @@ class TestBasicVariantContainerHelpers:
             'neg_log_pvalue': math.inf,
             'beta': 0.1,
             'stderr_beta': 0.1,
-            'alt_allele_freq': 0.25,
+            'alt_allele_freq': 0.75,
         }
 
         assert actual == expected

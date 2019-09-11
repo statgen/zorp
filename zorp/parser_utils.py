@@ -94,7 +94,7 @@ def parse_allele_frequency(*,
     if freq is None and (allele_count in MISSING_VALUES or n_samples in MISSING_VALUES):  # Allele count parsing
         return None
     elif freq is None and allele_count is not None:
-        allele_freq = int(allele_count) / int(n_samples) / 2
+        allele_freq = int(allele_count) / int(n_samples) / 2  # 2 alleles per sample
     elif freq in MISSING_VALUES:  # Frequency-based parsing
         return None
     else:

@@ -56,7 +56,8 @@ class BasicVariant:
 
     @property
     def maf(self) -> ty.Union[numbers.Number, None]:
-        return min(self.alt_allele_freq, 1 - self.alt_allele_freq)
+        af = self.alt_allele_freq
+        return min(af, 1 - af) if af is not None else None
 
     @property
     def marker(self) -> str:
