@@ -55,6 +55,10 @@ class BasicVariant:
         return self.pvalue
 
     @property
+    def maf(self) -> ty.Union[numbers.Number, None]:
+        return self.alt_allele_freq
+
+    @property
     def marker(self) -> str:
         """Specify the marker in a string format compatible with UM LD server and other variant-specific requests"""
         ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''

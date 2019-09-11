@@ -111,7 +111,7 @@ class TestGenericGwasParser:
         special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2,
                                                        allele_count_col=3, n_samples_col=4, is_alt_effect=False)
         p = special_parser(line)
-        assert p.alt_allele_freq == 0.75, "Calculates frequency from counts and orients to alt allele"
+        assert p.alt_allele_freq == 0.875, "Calculates frequency from counts and orients to alt allele"
 
     def test_parses_freq_from_freq(self):
         line = 'chr2:100:A:C_anno\t.05\t0.25'
@@ -262,11 +262,11 @@ class TestUtils:
 
     def test_parse_freq_given_counts(self):
         value = parser_utils.parse_allele_frequency(allele_count='25', n_samples='100')
-        assert value == 0.25
+        assert value == 0.125
 
     def test_parse_freq_given_counts_orients_to_alt(self):
         value = parser_utils.parse_allele_frequency(allele_count='75', n_samples='100', is_alt_effect=False)
-        assert value == 0.25
+        assert value == 0.625
 
     def test_parse_freq_handles_missing(self):
         value = parser_utils.parse_allele_frequency(allele_count='NA', n_samples='100')
