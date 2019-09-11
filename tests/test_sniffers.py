@@ -176,8 +176,8 @@ class TestFileFormatDetection:
     def test_can_guess_standard_format(self):
         # Tracks the "standard format" defined as a convenience parser
         data = _fixture_to_strings([
-            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta'],
-            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1']
+            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq'],
+            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
         ])
         actual = sniffers.guess_gwas_generic(data)
         assert actual._parser._chrom_col == 0, 'Found index of chr col'
