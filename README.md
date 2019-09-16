@@ -47,7 +47,8 @@ for number, message, raw_line in reader.errors:
 ```
 
 ### Command line file conversion
-The file conversion feature of zorp is also available as a command line utility. See `zorp-convert --help` for details.
+The file conversion feature of zorp is also available as a command line utility. See `zorp-convert --help` for details
+and the full list of supported options.
 
 This utility is currently in beta; please inspect the results carefully.
 
@@ -57,7 +58,7 @@ To auto-detect columns based on a library of commonly known file formats:
 
 Or specify your data columns exactly: 
 
-`$ zorp-convert infile.txt --dest outfile.txt --compress  --skip-rows 1 --chrom_col 1 --pos_col 2 --ref_col 3 --alt_col 4 --pvalue_col 5 --beta_col 6 --stderr_beta_col 7`
+`$ zorp-convert infile.txt --dest outfile.txt --index  --skip-rows 1 --chrom_col 1 --pos_col 2 --ref_col 3 --alt_col 4 --pvalue_col 5 --beta_col 6 --stderr_beta_col 7 --allele_freq_col 8`
 
 
 ## Development

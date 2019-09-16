@@ -43,7 +43,7 @@ def main(source: ty.Union[str, ty.Iterable],
                                          skip_errors=skip_errors, max_errors=max_errors)
 
     # By design, this filters all missing pvalues out of the result file
-    reader.add_filter('log_pvalue', lambda v, _: v is not None)
+    reader.add_filter('neg_log_pvalue', lambda v, _: v is not None)
 
     try:
         dest_fn = reader.write(out_fn, make_tabix=make_tabix)
@@ -59,7 +59,7 @@ def main(source: ty.Union[str, ty.Iterable],
             logger.error('Excluded row {} from output due to parse error: {}'.format(n, reason))
 
 
-def run():
+def run_cli():
     """Command line arguments"""
     parser = argparse.ArgumentParser(description="A utility to convert GWAS files into a standardized format."
                                                  "All column numbers should specify human-friendly indices (1-based)")
@@ -95,44 +95,48 @@ def run():
     parser.add_argument('-a', '--alt_col', type=int, dest='alt_col',
                         help='Column number with altvar')
 
+    # This argument is always required
+    parser.add_argument('-p', '--pvalue_col', type=int, dest='pvalue_col',
+                        help='Column number with pvalue (or logpvalue)')
+    parser.add_argument('--is_neg_log_pvalue', action='store_true', dest='is_neg_log_pvalue',
+                        help='Is the pvalue data stored in -log10(p) form?')
+
     # Optional fields
     parser.add_argument('--beta_col', type=int, dest='beta_col',
                         help='Column number with beta (effect size)')
     parser.add_argument('--stderr_beta_col', type=int, dest='stderr_beta_col',
                         help='Column number with stderr of effect size')
 
-    # This argument is always required
-    parser.add_argument('-p', '--pvalue_col', type=int, dest='pvalue_col',
-                        help='Column number with pvalue (or logpvalue)')
-    parser.add_argument('--is-neg-log-pvalue', action='store_true', dest='is_neg_log_pvalue',
-                        help='Is the pvalue data stored in -log10(p) form?')
+    parser.add_argument('--allele_freq_col', type=int, dest='allele_freq_col',
+                        help='Column number with allele frequency')
+    parser.add_argument('--allele_count_col', type=int, dest='allele_count_col',
+                        help='Column number with count of a specific allele (must also provide --n_samples_col)')
+    parser.add_argument('--n_samples_col', type=int, dest='n_samples_col',
+                        help='Column number with number of samples (must also provide --allele_count_col')
+    parser.add_argument('--is_ref_effect', action='store_true', dest='is_ref_effect',
+                        help='By default, frequency will apply to alt allele. Specify this flag if it refers to ref.')
 
-    parser.add_argument('--compress', action='store_true', dest='compress',
+    parser.add_argument('--index', action='store_true', dest='index',
                         help='Whether to tabix and compress the output')
 
     args = parser.parse_args()
+    parser_options = {
+        fieldname: getattr(args, fieldname)
+        for fieldname in ['marker_col', 'chrom_col', 'pos_col', 'ref_col', 'alt_col', 'pvalue_col',
+                          'beta_col', 'stderr_beta_col',
+                          'is_neg_log_pvalue', 'allele_freq_col', 'allele_count_col', 'n_samples_col']
+    }
+    parser_options['is_alt_effect'] = not args.is_ref_effect
 
     main(
         args.file,
         args.dest,
-        {
-            'marker_col': args.marker_col,
-            'chrom_col': args.chrom_col,
-            'pos_col': args.pos_col,
-            'ref_col': args.ref_col,
-            'alt_col': args.alt_col,
-            'pvalue_col': args.pvalue_col,
-            'is_neg_log_pvalue': args.is_neg_log_pvalue,
-
-            # Optional args
-            'beta_col': args.beta_col,
-            'stderr_beta_col': args.stderr_beta_col
-        },
+        parser_options,
         auto_config=args.auto,
         max_errors=args.max_errors,
         skip_errors=not args.stop_on_error,
         skip_rows=args.skip_rows,
-        make_tabix=args.compress
+        make_tabix=args.index
     )
 
 
@@ -140,5 +144,5 @@ if __name__ == '__main__':
     import time
 
     t1 = time.time()
-    run()
+    run_cli()
     logger.info('Conversion complete: Elapsed time: {}s'.format(time.time() - t1))

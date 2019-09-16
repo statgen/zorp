@@ -149,8 +149,9 @@ class GenericGwasLineParser(TupleLineParser):
                  beta_col: int = None,
                  stderr_beta_col: int = None,
 
-                 allele_freq_col: int = None,  # Freq OR by two count fields
-                 allele_count_col: int = None, n_samples_col: int = None,
+                 allele_freq_col: int = None,  # As freq OR by two count fields
+                 allele_count_col: int = None,
+                 n_samples_col: int = None,
                  # Other configuration options that apply to every row as constants
                  is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
                  is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
