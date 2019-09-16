@@ -6,6 +6,7 @@ import collections.abc
 import gzip
 import logging
 import os
+import sys
 import typing as ty
 
 import pysam
@@ -123,7 +124,7 @@ class BaseReader(abc.ABC):
         return self
 
     def write(self,
-              out_fn: str, *,
+              out_fn: str = None, *,
               columns: ty.Iterable[str] = None,
               delimiter: str = '\t',
               make_tabix: bool = False):
@@ -144,6 +145,9 @@ class BaseReader(abc.ABC):
         if make_tabix:
             delimiter = '\t'
 
+        if out_fn is None and make_tabix:
+            raise exceptions.ConfigurationException('Cannot create tabix file if writing output to a stream')
+
         if isinstance(self._source, str) and out_fn == self._source:
             raise exceptions.ConfigurationException('Writer cannot overwrite input file')
 
@@ -153,21 +157,31 @@ class BaseReader(abc.ABC):
             else:
                 raise exceptions.ConfigurationException('Must provide column names to write')
 
-        has_headers = any(isinstance(field, str) for field in columns)
-
         # Special case rule: The writer renders missing data (the Python value `None`) as `.`
         def repr_missing(v):
             return '.' if v is None else v
 
-        with open(out_fn, 'w') as f:
-            if has_headers:
-                f.write('#')
-                f.write(delimiter.join(str(name) for name in columns))
-                f.write('\n')
-            for row in self:
-                f.write(delimiter.join(str(repr_missing(getattr(row, field_name)))
-                                       for field_name in columns))
-                f.write('\n')
+        def write_all(handle):
+            """Internal helper that allows writing to either a file, or stdout"""
+            # Write headers
+            try:
+                handle.write('#')
+                handle.write(delimiter.join(str(name) for name in columns))
+                handle.write('\n')
+                for row in self:
+                    handle.write(delimiter.join(str(repr_missing(getattr(row, field_name)))
+                                                for field_name in columns))
+                    handle.write('\n')
+            except BrokenPipeError:  # pragma: no cover
+                # When writing to stdout, some utils (like head) may close the pipe early, at which point we end writing
+                return
+
+        # Readers can write to stdout, which lets CLI scripts (like zorp-convert) use this in a pipeline
+        try:
+            with open(out_fn, 'w') as f:
+                write_all(f)
+        except TypeError:
+            write_all(sys.stdout)
 
         if make_tabix:
             return pysam.tabix_index(out_fn, force=True, preset='vcf')

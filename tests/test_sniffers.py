@@ -219,7 +219,7 @@ class TestFileFormatDetection:
         assert actual._parser._beta_col is None, 'No beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
-    def can_guess_emmax_epacts(self):
+    def test_can_guess_emmax_epacts(self):
         """Fileformat sample provided by multiple tools"""
         data = _fixture_to_strings([
             ['#CHROM', 'BEG', 'END', 'MARKER_ID', 'NS', 'AC', 'CALLRATE', 'GENOCNT', 'MAF', 'STAT', 'PVALUE', 'BETA', 'SEBETA', 'R2'],  # noqa: E501

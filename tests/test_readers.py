@@ -121,6 +121,19 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException, match='column names'):
             reader.write(expected_fn)
 
+    def test_writer_can_send_to_console_stdout(self, capsys):
+        reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
+                                        parser=parsers.standard_gwas_parser_basic)
+        reader.write()
+        out, err = capsys.readouterr()
+        assert out.splitlines()[0] == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq'
+
+    def test_writer_validates_options_when_sending_to_console(self):
+        reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
+                                        parser=parsers.standard_gwas_parser_basic)
+        with pytest.raises(exceptions.ConfigurationException, match='stream'):
+            reader.write(make_tabix=True)
+
     ######
     # Error handling
     def test_can_fail_on_first_error(self):

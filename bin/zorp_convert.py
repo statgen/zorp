@@ -6,8 +6,10 @@ Supports tabix files (via command line argument), or any text stream (eg piping 
 """
 
 import argparse
+import functools
 import logging
 import sys
+import traceback
 import typing as ty
 
 from zorp import (
@@ -17,10 +19,42 @@ from zorp import (
 )
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(message)s')
 
 
+def suppress_broken_pipe_msg(f):
+    """
+    When using the CLI as part of a script pipeline, we want to gracefully handle the next command closing the pipe
+     early (eg head). This is a workaround for the fact that python prints an error message to the console even
+     when an error is correctly handled.
+    https://stackoverflow.com/questions/14207708/ioerror-errno-32-broken-pipe-python
+    """
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except SystemExit:
+            raise
+        except Exception:
+            traceback.print_exc()
+            exit(1)
+        finally:
+            try:
+                sys.stdout.flush()
+            finally:
+                try:
+                    sys.stdout.close()
+                finally:
+                    try:
+                        sys.stderr.flush()
+                    finally:
+                        sys.stderr.close()
+    return wrapper
+
+
+@suppress_broken_pipe_msg
 def main(source: ty.Union[str, ty.Iterable],
-         out_fn: str,
+         out_fn: ty.Union[str, None],
          parser_options: dict,
          auto_config=False,
          skip_rows=None,
@@ -46,7 +80,7 @@ def main(source: ty.Union[str, ty.Iterable],
     reader.add_filter('neg_log_pvalue', lambda v, _: v is not None)
 
     try:
-        dest_fn = reader.write(out_fn, make_tabix=make_tabix)
+        dest_fn = reader.write(out_fn, make_tabix=make_tabix) or 'console'
     except exceptions.TooManyBadLinesException:
         logger.error('ERROR: Too many lines failed to parse; stopping.')
     except Exception:
@@ -65,7 +99,7 @@ def run_cli():
                                                  "All column numbers should specify human-friendly indices (1-based)")
     parser.add_argument('file', nargs='?', default=None,
                         help='The path to the input GWAS file')
-    parser.add_argument('--dest', type=str, required=True,
+    parser.add_argument('--dest', type=str,
                         help='The filename to use when saving the output GWAS file')
     parser.add_argument('--skip-rows', dest='skip_rows', type=int, default=None,
                         help='The number of non-data lines that will be skipped')
@@ -130,7 +164,7 @@ def run_cli():
 
     main(
         args.file,
-        args.dest,
+        args.dest or None,
         parser_options,
         auto_config=args.auto,
         max_errors=args.max_errors,
