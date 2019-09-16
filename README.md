@@ -60,6 +60,13 @@ Or specify your data columns exactly:
 
 `$ zorp-convert infile.txt --dest outfile.txt --index  --skip-rows 1 --chrom_col 1 --pos_col 2 --ref_col 3 --alt_col 4 --pvalue_col 5 --beta_col 6 --stderr_beta_col 7 --allele_freq_col 8`
 
+The `--index` option requires that your file be sorted first. If not, you can tabix the standard output format manually 
+as follows.
+
+```
+$ (head -n 1 <filename.txt> && tail -n +2 <file> | sort -k1,1 -k 2,2n) | bgzip > <filename.sorted.gz>
+$ tabix <filename.sorted.gz> -p vcf
+```
 
 ## Development
 
