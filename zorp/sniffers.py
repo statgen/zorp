@@ -256,6 +256,7 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
 
     parser_options = parser_options or {}
+    parser_options = {k: v for k, v in parser_options.items() if v is not None}  # all kwargs must have values
 
     if parser and parser_options:
         raise exceptions.ConfigurationException(

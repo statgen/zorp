@@ -186,7 +186,7 @@ class GenericGwasLineParser(TupleLineParser):
 
     def validate_config(self):
         """Ensures that a minimally working parser has been created"""
-        # Some old gwas files may not have ref and alt (incomplete marker, or missing columns). There fields aren't
+        # Some old gwas files may not have ref and alt (incomplete marker, or missing columns). These fields aren't
         #   strictly required, but we really really like to have them
         has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
                                                             for x in ('_chrom_col', '_pos_col'))
@@ -280,6 +280,12 @@ class GenericGwasLineParser(TupleLineParser):
         # Some old GWAS files simply won't provide ref or alt information, and the parser will need to do without
         if ref in MISSING_VALUES:
             ref = None
+
+        if isinstance(ref, str):
+            ref = ref.upper()
+
+        if isinstance(alt, str):
+            alt = alt.upper()
 
         if alt in MISSING_VALUES:
             alt = None

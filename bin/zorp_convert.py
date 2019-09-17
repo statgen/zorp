@@ -73,7 +73,8 @@ def main(source: ty.Union[str, ty.Iterable],
         logger.error('Please provide all options required to parse the file, or use the --auto flag to guess')
         sys.exit(1)
 
-    reader = sniffers.guess_gwas_generic(source, skip_rows=skip_rows, parser=parser,
+    # Guess how to read the file. If no parser was provided, try to guess columns.
+    reader = sniffers.guess_gwas_generic(source, skip_rows=skip_rows, parser=parser, parser_options=parser_options,
                                          skip_errors=skip_errors, max_errors=max_errors)
 
     # By design, this filters all missing pvalues out of the result file

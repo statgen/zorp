@@ -158,6 +158,13 @@ class TestStandardGwasParser:
         assert output.ref is None, 'Handles missing ref info'
         assert output.alt is None, 'Handles missing alt info'
 
+    def test_enforces_uppercase_ref_alt(self):
+        line = '1\t2\ta\tnull\t.05'
+        output = parsers.standard_gwas_parser_basic(line)
+        assert output.ref == 'A', 'Outputs uppercase ref'
+        assert output.alt is None, 'Alt is a missing value'
+        assert output.marker == '1:2', 'Marker is brief format because either ref or alt is missing'
+
     def test_enforces_readable_pvalue(self):
         line = '1\t100\tA\tC\tNOPE'
         with pytest.raises(exceptions.LineParseException, match="could not convert string to float"):
