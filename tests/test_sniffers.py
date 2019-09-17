@@ -14,6 +14,12 @@ def _fixture_to_strings(lines: list, delimiter: str = '\t') -> list:
             for line in lines]
 
 
+def h(val):
+    # Helper to make tests more readable: parsers accept 1-based kwargs, but store value as 0-indexed.
+    #   Allow all asserts to be written in terms of one consistent convention.
+    return val + 1
+
+
 class TestFiletypeDetection:
     def test_opens_gzip(self):
         fn = os.path.join(os.path.dirname(__file__), "data/sample.gz")
@@ -180,16 +186,16 @@ class TestFileFormatDetection:
             ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 1, 'Found index of pos col'
-        assert actual._parser._ref_col == 2, 'Found index of ref col'
-        assert actual._parser._alt_col == 3, 'Found index of alt col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
 
-        assert actual._parser._pvalue_col == 4, 'Found index of pval col'
+        assert h(actual._parser._pvalue_col) == 5, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 5, 'beta field detected'
-        assert actual._parser._stderr_col == 6, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 6, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 7, 'stderr_beta field detected'
 
     def test_can_guess_bolt_lmm(self):
         data = _fixture_to_strings([
@@ -198,12 +204,12 @@ class TestFileFormatDetection:
         ])
 
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._marker_col == 0, 'Found index of marker col'
-        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert h(actual._parser._marker_col) == 1, 'Found index of marker col'
+        assert h(actual._parser._pvalue_col) == 11, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 8, 'beta field detected'
-        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 9, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 10, 'stderr_beta field detected'
 
     def test_can_guess_epacts(self):
         data = _fixture_to_strings([
@@ -212,8 +218,8 @@ class TestFileFormatDetection:
         ])
 
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._marker_col == 3, 'Found index of marker col'
-        assert actual._parser._pvalue_col == 8, 'Found index of pval col'
+        assert h(actual._parser._marker_col) == 4, 'Found index of marker col'
+        assert h(actual._parser._pvalue_col) == 9, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col is None, 'No beta field detected'
@@ -227,12 +233,12 @@ class TestFileFormatDetection:
         ])
 
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._marker_col == 3, 'Found index of marker col'
-        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert h(actual._parser._marker_col) == 4, 'Found index of marker col'
+        assert h(actual._parser._pvalue_col) == 11, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 11, 'beta field detected'
-        assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 12, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 13, 'stderr_beta field detected'
 
     def test_can_guess_metal(self):
         data = _fixture_to_strings([
@@ -240,15 +246,15 @@ class TestFileFormatDetection:
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 1, 'Found index of pos col'
-        assert actual._parser._ref_col == 2, 'Found index of ref col'
-        assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 11, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 7, 'beta field detected'
-        assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 8, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 9, 'stderr_beta field detected'
 
     def test_can_guess_plink(self):
         # Format: https://www.cog-genomics.org/plink2/formats
@@ -259,11 +265,11 @@ class TestFileFormatDetection:
             ['1', 'rs3094315', '742429', 'C', '0.1509', '0.1394', 'T', '0.0759', '0.782', '1.097']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of col'
-        assert actual._parser._pos_col == 2, 'Found index of pos col'
-        assert actual._parser._ref_col == 3, 'Found index of ref col'
-        assert actual._parser._alt_col == 6, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 8, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of col'
+        assert h(actual._parser._pos_col) == 3, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 4, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 7, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 9, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
         assert actual._parser._beta_col is None, 'No beta field detected'
@@ -275,15 +281,15 @@ class TestFileFormatDetection:
             ['1', '10177', 'A', 'AC', '491984', '0.00511094', '?-????????????????-????+???????????????????????????????????????????????????????????????????-????????????????????????????????????????????????????????????????????????????????', '-0.0257947', '0.028959', '1.61266e-06', '0.373073']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 1, 'Found index of pos col'
-        assert actual._parser._ref_col == 2, 'Found index of ref col'
-        assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 11, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 7, 'Beta field detected'
-        assert actual._parser._stderr_col == 8, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 8, 'Beta field detected'
+        assert h(actual._parser._stderr_col) == 9, 'stderr_beta field detected'
 
     def test_can_guess_raremetalworker(self):
         data = _fixture_to_strings([
@@ -291,14 +297,14 @@ class TestFileFormatDetection:
             ['9', '400066155', 'T', 'C', '432', '0', '0', '0', '1', '1', '432', '0', '0', 'NA', 'NA', 'NA', 'NA']
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 1, 'Found index of pos col'
-        assert actual._parser._ref_col == 2, 'Found index of ref col'
-        assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 16, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 17, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 15, 'beta field detected'
+        assert h(actual._parser._beta_col) == 16, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
     def test_can_guess_rvtests(self):
@@ -307,14 +313,14 @@ class TestFileFormatDetection:
             ['1', '761893', 'G', 'T', '19292', '2.59624e-05:0.000655308:0', '1:1:0', '0.998289:0.996068:0.998381', '1:1:1', '19258:759:18499', '1:1:0', '0:0:0', '1.33113', '0.268484', '18.4664', '7.12493e-07']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 1, 'Found index of pos col'
-        assert actual._parser._ref_col == 2, 'Found index of ref col'
-        assert actual._parser._alt_col == 3, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 15, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 16, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 14, 'beta field detected'
+        assert h(actual._parser._beta_col) == 15, 'beta field detected'
         assert actual._parser._stderr_col is None, 'No stderr_beta field detected'
 
     def test_can_guess_saige(self):
@@ -323,12 +329,12 @@ class TestFileFormatDetection:
             ['chr1', '76792', 'chr1:76792:A:C', 'A', 'C', '57', '0.00168639048933983', '16900', '0.573681678183941', '0.663806747906141', '1.30193005902619', '0.387461577915637', '0.387461577915637', '1', '2.2694293866027', '2.41152256615949']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._marker_col == 2, 'Found index of marker col'
-        assert actual._parser._pvalue_col == 11, 'Found index of pval col'
+        assert h(actual._parser._marker_col) == 3, 'Found index of marker col'
+        assert h(actual._parser._pvalue_col) == 12, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 8, 'beta field detected'
-        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 9, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 10, 'stderr_beta field detected'
 
     def test_can_guess_a_mystery_format(self):
         # TODO: Identify the program used and make test more explicit
@@ -339,15 +345,15 @@ class TestFileFormatDetection:
             ['1', 'rs75333668', '762320', '0', '3610', 'T', 'C', '0.013', '-5.667138e-02', '1.027936e-01', '5.814536e-01']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 0, 'Found index of chr col'
-        assert actual._parser._pos_col == 2, 'Found index of pos col'
-        assert actual._parser._ref_col == 5, 'Found index of ref col'
-        assert actual._parser._alt_col == 6, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 10, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 3, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 6, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 7, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 11, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 8, 'beta field detected'
-        assert actual._parser._stderr_col == 9, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 9, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 10, 'stderr_beta field detected'
 
     def test_can_guess_output_of_alisam_pipeline(self):
         data = _fixture_to_strings([
@@ -355,15 +361,15 @@ class TestFileFormatDetection:
             ['chr1-281876-AC-A', 'chr1', '281876', 'AC', 'A', 'alt', '0.231428578495979', '1053', '2275', '0.447865946615285', 'rs72502741', '-0.0872936159370696', '0.115014743551501', '0.231428578495979', 'chr1:281876_AC/A']  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._chrom_col == 1, 'Found index of chr col'
-        assert actual._parser._pos_col == 2, 'Found index of pos col'
-        assert actual._parser._ref_col == 3, 'Found index of ref col'
-        assert actual._parser._alt_col == 4, 'Found index of alt col'
-        assert actual._parser._pvalue_col == 9, 'Found index of pval col'
+        assert h(actual._parser._chrom_col) == 2, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 3, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 4, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 5, 'Found index of alt col'
+        assert h(actual._parser._pvalue_col) == 10, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 11, 'beta field detected'
-        assert actual._parser._stderr_col == 12, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 12, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 13, 'stderr_beta field detected'
 
     def test_can_guess_whatever_diagram_was_using(self):
         # FIXME: If this format turns out to be common, we should improve it to fetch all four values, instead of just
@@ -373,12 +379,12 @@ class TestFileFormatDetection:
             ['5:29439275', 'T', 'C', '-0.0003', '0.015', '0.99', '111309'],
         ])
         actual = sniffers.guess_gwas_generic(data)
-        assert actual._parser._marker_col == 0, 'Found index of marker col'
-        assert actual._parser._pvalue_col == 5, 'Found index of pval col'
+        assert h(actual._parser._marker_col) == 1, 'Found index of marker col'
+        assert h(actual._parser._pvalue_col) == 6, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 3, 'beta field detected'
-        assert actual._parser._stderr_col == 4, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 4, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 5, 'stderr_beta field detected'
 
     def test_can_guess_lipidgenetics_glgc_format_with_help(self):
         # The sniffer won't try to guess hybrid marker/allele formats (4 items in 3 columns), but it can parse
@@ -388,11 +394,11 @@ class TestFileFormatDetection:
             ['chr10:10000135', 'chr10:9960129', 'rs4747841', 'g', 'a', '0.0026', '0.0048', '93561.00', '0.7538', '0.5092'],  # noqa: E501
         ])
         actual = sniffers.guess_gwas_generic(data, parser_options={'marker_col': 2, 'ref_col': 4, 'alt_col': 5})
-        assert actual._parser._marker_col == 1, 'Found index of marker col'
+        assert h(actual._parser._marker_col) == 2, 'Found index of marker col'
         assert actual._parser._chrom_col is None, 'Prefers marker and does not try to guess chrom col'
-        assert actual._parser._ref_col == 3, 'Found index of ref col'
-        assert actual._parser._pvalue_col == 8, 'Found index of pvalue col'
+        assert h(actual._parser._ref_col) == 4, 'Found index of ref col'
+        assert h(actual._parser._pvalue_col) == 9, 'Found index of pvalue col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
 
-        assert actual._parser._beta_col == 5, 'beta field detected'
-        assert actual._parser._stderr_col == 6, 'stderr_beta field detected'
+        assert h(actual._parser._beta_col) == 6, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 7, 'stderr_beta field detected'
