@@ -56,9 +56,9 @@ class TestGenericGwasParser:
         with pytest.raises(exceptions.ConfigurationException, match='all required'):
             parsers.GenericGwasLineParser(marker_col=1, pvalue_col=None)
 
-    def test_validates_arguments_optional_fields(self):
+    def test_validates_that_allele_spec_is_none_or_both(self):
         with pytest.raises(exceptions.ConfigurationException, match='all required'):
-            parsers.GenericGwasLineParser(marker_col=1, pvalue_col=None)
+            parsers.GenericGwasLineParser(marker_col=1, ref_col=3, pvalue_col=None)
 
     def test_validates_frequency_fields(self):
         with pytest.raises(exceptions.ConfigurationException, match='mutually exclusive'):
@@ -111,6 +111,15 @@ class TestGenericGwasParser:
         special_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, delimiter=' ')
         with pytest.raises(exceptions.LineParseException, match="delimiter"):
             special_parser(line)
+
+    def test_gets_marker_info_from_hybrid_fields(self):
+        line = 'chr2:100_NA_NA\tA\tC\t.05'
+        special_parser = parsers.GenericGwasLineParser(marker_col=1, ref_col=2, alt_col=3, pval_col=4)
+        p = special_parser(line)
+        assert p.chrom == '2', 'Read chrom from marker'
+        assert p.pos == 100, 'Read pos from marker'
+        assert p.ref == 'A', 'Read ref from column and ignored marker value'
+        assert p.alt == 'C', 'Read alt from column and ignored marker value'
 
     def test_parses_freq_from_counts(self):
         line = 'chr2:100:A:C_anno\t.05\t25\t100'

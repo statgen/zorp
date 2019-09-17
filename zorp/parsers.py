@@ -193,9 +193,15 @@ class GenericGwasLineParser(TupleLineParser):
 
     def validate_config(self):
         """Ensures that a minimally working parser has been created"""
+        # Some old gwas files may not have ref and alt (incomplete marker, or missing columns). There fields aren't
+        #   strictly required, but we really really like to have them
         has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
-                                                            for x in ('_chrom_col', '_pos_col', '_ref_col', '_alt_col'))
-        is_valid = has_position and (self._pvalue_col is not None)
+                                                            for x in ('_chrom_col', '_pos_col'))
+        # If we do have one allele, we must have both
+        both_markers = (self._ref_col is None and self._alt_col is None) or \
+                       (self._ref_col is not None and self._alt_col is not None)
+
+        is_valid = has_position and both_markers and (self._pvalue_col is not None)
         if not is_valid:
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
 
@@ -221,13 +227,20 @@ class GenericGwasLineParser(TupleLineParser):
 
     def _process_values(self, values: ty.Sequence):
         # Fetch values
+        ref = None
+        alt = None
         if self._marker_col is not None:
             chrom, pos, ref, alt = parser_utils.parse_marker(values[self._marker_col])
         else:
             # TODO: Should we check for, and strip, the letters chr?
             chrom = values[self._chrom_col]
             pos = values[self._pos_col]
+
+        # Explicit columns will override a value from the marker, by design
+        if self._ref_col is not None:
             ref = values[self._ref_col]
+
+        if self._alt_col is not None:
             alt = values[self._alt_col]
 
         pval = values[self._pvalue_col]
