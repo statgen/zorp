@@ -20,7 +20,7 @@ from . import (
     const,
     exceptions,
     parsers,
-    parser_utils,
+    parser_utils as utils,
     readers
 )
 
@@ -68,7 +68,7 @@ def levenshtein(s1, s2):
     return previous_row[-1]
 
 
-def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2):
+def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2) -> ty.Union[int, None]:
     #  Find the column name that best matches
     best_score = threshold + 1
     best_match = None
@@ -85,14 +85,15 @@ def find_column(column_synonyms: tuple, header_names: list, threshold: int = 2):
     return best_match
 
 
-def get_pval_column(header_names: list, data_rows: ty.Iterable) \
-        -> ty.Union[dict, None]:
+def get_pval_column(header_names: list, data_rows: ty.Iterable, overrides: dict = None) -> dict:
     """
     Return (column, is_neg_log), or None/None if config not found
     Column numbers are 1-based, for compatibility with parsers
     """
+    overrides = overrides or {}
+
     LOGPVALUE_FIELDS = ('neg_log_pvalue', 'log_pvalue', 'log_pval', 'logpvalue')
-    PVALUE_FIELDS = ('pvalue', 'p.value', 'pval', 'p_score', 'p')
+    PVALUE_FIELDS = ('pvalue', 'p.value', 'p-value', 'pval', 'p_score', 'p')
 
     data = itertools.islice(data_rows, 100)
 
@@ -103,14 +104,18 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
                         for val in vals]
         try:
             for v in cleaned_vals:
-                parser_utils.parse_pval_to_log(v, is_neg_log=is_log)
+                utils.parse_pval_to_log(v, is_neg_log=is_log)
         except Exception:
             return False
 
         return True
 
-    log_p_col = find_column(LOGPVALUE_FIELDS, header_names)
-    p_col = find_column(PVALUE_FIELDS, header_names)
+    # Overrides will "win" if present
+    manual_pcol = utils.human_to_zero(overrides.get('pvalue_col'))
+    manual_islog = overrides.get('is_neg_log_pvalue')
+
+    log_p_col = (manual_islog and manual_pcol) or find_column(LOGPVALUE_FIELDS, header_names)
+    p_col = (not manual_islog and manual_pcol) or find_column(PVALUE_FIELDS, header_names)
 
     if log_p_col is not None and _validate_p(log_p_col, data, True):
         return {'pvalue_col': log_p_col + 1, 'is_neg_log_pvalue': True}
@@ -118,17 +123,16 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable) \
         return {'pvalue_col': p_col + 1, 'is_neg_log_pvalue': False}
 
     # Could not auto-determine an appropriate pvalue column
-    return None
+    return {}
 
 
-def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
+def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable, overrides: dict = None) -> dict:
     """
     Find the information required to uniquely identify the marker. Returns 1-based column indices for compatibility
         with line parsers.
-    :param header_names:
-    :param data_rows:
-    :return:
     """
+    overrides = overrides or {}
+
     # Get from either a marker, or 4 separate columns
     MARKER_FIELDS = ('snpid', 'marker', 'markerid', 'snpmarker', 'chr:position')
     CHR_FIELDS = ('chrom', 'chr')
@@ -142,9 +146,9 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     ALT_FIELDS = ('A2', 'alt', 'alternate', 'allele1', 'allele2')
 
     first_row = next(data)
-    marker_col = find_column(MARKER_FIELDS, header_names)
+    marker_col = utils.human_to_zero(overrides.get('marker_col')) or find_column(MARKER_FIELDS, header_names)
 
-    if marker_col is not None and parser_utils.parse_marker(first_row[marker_col], test=True):
+    if marker_col is not None and utils.parse_marker(first_row[marker_col], test=True):
         return {'marker_col': marker_col + 1}
 
     # If single columns were incomplete, attempt to auto detect 4 separate columns. All 4 must
@@ -158,9 +162,9 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     ]
     config = {}
     for col_name, col_choices in to_find:
-        col = find_column(col_choices, headers_marked)  # type: ignore
+        col = utils.human_to_zero(overrides.get(col_name)) or find_column(col_choices, headers_marked)  # type: ignore
         if col is None:
-            return None
+            return {}
 
         config[col_name] = col + 1
         # Once a column has been assigned, remove it from consideration for future matches
@@ -169,7 +173,9 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable):
     return config
 
 
-def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
+def get_effect_size_columns(header_names: list, data_rows: ty.Iterable, overrides: dict = None):
+    overrides = overrides or {}
+
     BETA_FIELDS = ('beta', 'effect_size', 'alt_effsize', 'effect')
     STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'sebeta', 'effect_size_sd', 'se')
 
@@ -187,8 +193,9 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
             return False
         return True
 
-    beta_col = find_column(BETA_FIELDS, header_names, threshold=0)
-    stderr_col = find_column(STDERR_BETA_FIELDS, header_names, threshold=0)
+    beta_col = utils.human_to_zero(overrides.get('beta_col')) or find_column(BETA_FIELDS, header_names, threshold=0)
+    stderr_col = utils.human_to_zero(overrides.get('stderr_beta_col')) or find_column(STDERR_BETA_FIELDS,
+                                                                                      header_names, threshold=0)
 
     ret = {}
     if beta_col is not None and _validate_numeric(beta_col, data):
@@ -197,7 +204,7 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable):
     if stderr_col is not None and _validate_numeric(stderr_col, data):
         ret['stderr_beta_col'] = stderr_col + 1
 
-    return ret or None
+    return ret
 
 
 def get_reader(filename: ty.Union[ty.Iterable, str]) -> ty.Type[readers.BaseReader]:
@@ -248,6 +255,8 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
     reader_class = get_reader(filename)
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
 
+    parser_options = parser_options or {}
+
     if parser and parser_options:
         raise exceptions.ConfigurationException(
             'You have specified an exact `parser` and partial `parser_options`. These options are mutually exclusive.')
@@ -264,20 +273,20 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
         # Any kwargs not specified for this function are assumed to be reader options, and passed directly in
         data_reader = reader_class(filename, skip_rows=to_skip, parser=parser, **kwargs)
 
-        p_config = get_pval_column(header_names, data_reader)
-        if p_config is None:
+        p_config = get_pval_column(header_names, data_reader, overrides=parser_options)
+        if not p_config:
             raise exceptions.SnifferException('Could not find required field: pvalue')
 
         header_names[p_config['pvalue_col'] - 1] = None  # Remove this column from consideration for other matches
-        position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader)
+        position_config = get_chrom_pos_ref_alt_columns(header_names, data_reader, overrides=parser_options)
 
-        if position_config is None:
+        if not position_config:
             raise exceptions.SnifferException('Could not find SNP identifier columns (position or marker)')
 
         for v in position_config.values():
             header_names[v - 1] = None  # Remove columns from consideration
 
-        beta_config = get_effect_size_columns(header_names, data_reader)
+        beta_config = get_effect_size_columns(header_names, data_reader, overrides=parser_options)
 
         # Configure a reader and parser based on the auto-detected file options, plus any explicit argument overrides
         options = {**p_config, **position_config, **(beta_config or {}), **(parser_options or {})}

@@ -108,3 +108,14 @@ def parse_allele_frequency(*,
         return 1 - allele_freq
     else:
         return allele_freq
+
+
+def human_to_zero(value):
+    """
+    Many of our parsers use 1-based indices as arguments, and convert to 0-based indices for internal usage
+        (eg, "column 1 = index 0 in this list of fields")
+    """
+    if value is None:
+        return value
+    else:
+        return value - 1

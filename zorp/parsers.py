@@ -12,7 +12,7 @@ except ImportError:  # pragma: no cover
     pass
 
 from .const import MISSING_VALUES
-from . import exceptions, parser_utils
+from . import exceptions, parser_utils as utils
 
 
 class BasicVariant:
@@ -161,30 +161,23 @@ class GenericGwasLineParser(TupleLineParser):
         # All GWAS parsers can specify
         self._container = container
 
-        # The kwargs use human-friendly numbers. Internally, we store them as 0-based indices.
-        def _human_to_zero(value):
-            if value is None:
-                return value
-            else:
-                return value - 1
-
         # Chrom field has a legacy alias, allowing older parser configs to work.
-        self._chrom_col = _human_to_zero(chrom_col) if chrom_col is not None else _human_to_zero(chr_col)
-        self._pos_col = _human_to_zero(pos_col)
-        self._ref_col = _human_to_zero(ref_col)
-        self._alt_col = _human_to_zero(alt_col)
+        self._chrom_col = utils.human_to_zero(chrom_col) if chrom_col is not None else utils.human_to_zero(chr_col)
+        self._pos_col = utils.human_to_zero(pos_col)
+        self._ref_col = utils.human_to_zero(ref_col)
+        self._alt_col = utils.human_to_zero(alt_col)
 
-        self._marker_col = _human_to_zero(marker_col)
+        self._marker_col = utils.human_to_zero(marker_col)
 
         # Support legacy alias for field name
-        self._pvalue_col = _human_to_zero(pvalue_col) if pvalue_col is not None else _human_to_zero(pval_col)
+        self._pvalue_col = utils.human_to_zero(pvalue_col) if pvalue_col is not None else utils.human_to_zero(pval_col)
 
-        self._beta_col = _human_to_zero(beta_col)
-        self._stderr_col = _human_to_zero(stderr_beta_col)
+        self._beta_col = utils.human_to_zero(beta_col)
+        self._stderr_col = utils.human_to_zero(stderr_beta_col)
 
-        self._allele_freq_col = _human_to_zero(allele_freq_col)
-        self._allele_count_col = _human_to_zero(allele_count_col)
-        self._n_samples_col = _human_to_zero(n_samples_col)
+        self._allele_freq_col = utils.human_to_zero(allele_freq_col)
+        self._allele_count_col = utils.human_to_zero(allele_count_col)
+        self._n_samples_col = utils.human_to_zero(n_samples_col)
 
         self._is_neg_log_pvalue = is_neg_log_pvalue or is_log_pval  # The latter option is an alias for legacy reasons
         self._is_alt_effect = is_alt_effect
@@ -230,7 +223,7 @@ class GenericGwasLineParser(TupleLineParser):
         ref = None
         alt = None
         if self._marker_col is not None:
-            chrom, pos, ref, alt = parser_utils.parse_marker(values[self._marker_col])
+            chrom, pos, ref, alt = utils.parse_marker(values[self._marker_col])
         else:
             # TODO: Should we check for, and strip, the letters chr?
             chrom = values[self._chrom_col]
@@ -267,7 +260,7 @@ class GenericGwasLineParser(TupleLineParser):
 
         # Perform type coercion
         try:
-            log_pval = parser_utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
+            log_pval = utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
             pos = int(pos)
             if beta is not None:
                 beta = None if beta in MISSING_VALUES else float(beta)
@@ -275,7 +268,7 @@ class GenericGwasLineParser(TupleLineParser):
                 stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
 
             if self._allele_freq_col or self._allele_count_col:
-                alt_allele_freq = parser_utils.parse_allele_frequency(
+                alt_allele_freq = utils.parse_allele_frequency(
                     freq=alt_allele_freq,
                     allele_count=allele_count,
                     n_samples=n_samples,
@@ -339,9 +332,9 @@ class QuickGwasLineParser:
             if alt in MISSING_VALUES:
                 alt = None
 
-            log_pvalue = parser_utils.parse_pval_to_log(log_pvalue, is_neg_log=True)
+            log_pvalue = utils.parse_pval_to_log(log_pvalue, is_neg_log=True)
 
-            alt_allele_freq = parser_utils.parse_allele_frequency(freq=alt_allele_freq, is_alt_effect=True)
+            alt_allele_freq = utils.parse_allele_frequency(freq=alt_allele_freq, is_alt_effect=True)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=row)
 

@@ -130,7 +130,7 @@ class TestGetPvalColumn:
         headers = ['pval']
         data = [[100]]
         actual = sniffers.get_pval_column(headers, data)
-        assert actual is None
+        assert actual == {}
 
 
 class TestGetEffectSizeColumns:
@@ -138,7 +138,7 @@ class TestGetEffectSizeColumns:
         headers = ['beta']
         data = [['bork']]
         actual = sniffers.get_effect_size_columns(headers, data)
-        assert actual is None
+        assert actual == {}
 
 
 class TestFileFormatDetection:
@@ -379,3 +379,20 @@ class TestFileFormatDetection:
 
         assert actual._parser._beta_col == 3, 'beta field detected'
         assert actual._parser._stderr_col == 4, 'stderr_beta field detected'
+
+    def test_can_guess_lipidgenetics_glgc_format_with_help(self):
+        # The sniffer won't try to guess hybrid marker/allele formats (4 items in 3 columns), but it can parse
+        #   it with help
+        data = _fixture_to_strings([
+            ['SNP_hg18', 'SNP_hg19', 'rsid', 'A1', 'A2', 'beta', 'se', 'N', 'P-value', 'Freq.A1.1000G.EUR'],
+            ['chr10:10000135', 'chr10:9960129', 'rs4747841', 'g', 'a', '0.0026', '0.0048', '93561.00', '0.7538', '0.5092'],  # noqa: E501
+        ])
+        actual = sniffers.guess_gwas_generic(data, parser_options={'marker_col': 2, 'ref_col': 4, 'alt_col': 5})
+        assert actual._parser._marker_col == 1, 'Found index of marker col'
+        assert actual._parser._chrom_col is None, 'Prefers marker and does not try to guess chrom col'
+        assert actual._parser._ref_col == 3, 'Found index of ref col'
+        assert actual._parser._pvalue_col == 8, 'Found index of pvalue col'
+        assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
+
+        assert actual._parser._beta_col == 5, 'beta field detected'
+        assert actual._parser._stderr_col == 6, 'stderr_beta field detected'
