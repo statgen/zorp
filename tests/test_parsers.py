@@ -197,6 +197,14 @@ class TestQuickParser:
         assert output.alt == 'C'
         assert output.pvalue == pytest.approx(1e-10)
 
+    def test_delimiter_is_tab_only(self):
+        line = '1\t100\tA B C D\tC\fC\t10'
+        output = parsers.standard_gwas_parser_quick(line)
+        assert output.chrom == '1'
+        assert output.ref == 'A B C D'
+        assert output.alt == 'C\fC'
+        assert output.neg_log_pvalue == 10.0
+
     def test_handles_missing_and_special_values(self):
         line = '1\t100\tnull\tNone\tInfinity'
         output = parsers.standard_gwas_parser_quick(line)
