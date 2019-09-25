@@ -313,7 +313,7 @@ class QuickGwasLineParser:
         # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing
         #   spaces, and all uses of the delimiter mean what we think they do
         try:
-            cols = row.split('\t')  # The standard is defined as a tab-delimited file
+            cols = row.strip().split('\t')  # The standard is defined as a tab-delimited file; strip trailing newlines
             chrom, pos, ref, alt, log_pvalue = cols[:5]  # These fields are always required
 
             # For fwd compatibility, the quick-parser will assume that new columns become mandatory & are append-only
