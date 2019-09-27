@@ -176,7 +176,7 @@ class TestGenericSniffer:
     def test_sniffer_validates_options(self):
         with pytest.raises(exceptions.ConfigurationException, match='exclusive'):
             sniffers.guess_gwas_generic(['1', '2'],
-                                        parser=parsers.standard_gwas_parser_basic,
+                                        parser=parsers.TupleLineParser(),
                                         parser_options={'option': 1})
 
     # Sample file formats/ sample data that Zorp should be able to detect
@@ -415,11 +415,6 @@ class TestStandardSniffer:
             ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq'],
             ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
         ])
-
-        data = _fixture_to_strings([
-            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq'],
-            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
-        ])
         actual = sniffers.guess_gwas_standard(data)
         assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
         assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
@@ -464,7 +459,7 @@ class TestStandardSniffer:
         assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
 
         assert h(actual._parser._beta_col) == 2, 'beta field detected'
-        assert actual._parser._stderr_col is None , 'no stderr_beta field detected'
+        assert actual._parser._stderr_col is None, 'no stderr_beta field detected'
         assert h(actual._parser._allele_freq_col) == 7, 'Standard files mean allele freq meaning is clear'
 
     def test_warns_if_required_columns_missing(self):
@@ -474,3 +469,11 @@ class TestStandardSniffer:
         ])
         with pytest.raises(exceptions.SnifferException, match='must specify all columns'):
             sniffers.guess_gwas_standard(data)
+
+    def test_some_options_are_mutually_exclusive(self):
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'beta'],
+            ['1', '762320', 'C', 'T', '0.5']
+        ])
+        with pytest.raises(exceptions.ConfigurationException, match='mutually exclusive'):
+            sniffers.guess_gwas_standard(data, parser=parsers.TupleLineParser(), parser_options={'any': 1})

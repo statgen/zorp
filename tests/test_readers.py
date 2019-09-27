@@ -8,23 +8,22 @@ import pytest
 
 from zorp import (
     exceptions,
-    parsers,
     readers,
 )
 
 
 @pytest.fixture
-def simple_tabix_reader():
+def simple_tabix_reader(standard_gwas_parser_basic):
     return readers.TabixReader(os.path.join(os.path.dirname(__file__), "data/sample.gz"),
-                               parser=parsers.standard_gwas_parser_basic,
+                               parser=standard_gwas_parser_basic,
                                skip_rows=1)
 
 
 @pytest.fixture
-def simple_file_reader():
+def simple_file_reader(standard_gwas_parser_basic):
     return readers.TextFileReader(os.path.join(os.path.dirname(__file__),
                                                "data/pheweb-samples/has-fields-.txt"),
-                                  parser=parsers.standard_gwas_parser_basic,
+                                  parser=standard_gwas_parser_basic,
                                   skip_rows=1)
 
 
@@ -59,16 +58,16 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException):
             reader.add_filter('chrom', 'value')
 
-    def test_named_filter_support_requires_field_with_name(self):
-        reader = readers.IterableReader([], parser=parsers.standard_gwas_parser)
+    def test_named_filter_support_requires_field_with_name(self, standard_gwas_parser):
+        reader = readers.IterableReader([], parser=standard_gwas_parser)
         with pytest.raises(exceptions.ConfigurationException):
             reader.add_filter("fake_field", "value")
 
     ######
     # Writes files
-    def test_can_write_output(self, tmpdir):
+    def test_can_write_output(self, tmpdir, standard_gwas_parser_basic):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn, columns=['chrom'], make_tabix=False)
 
@@ -77,10 +76,10 @@ class TestIterableReader:
         with open(out_fn, 'r') as f:
             assert f.readlines() == ["#chrom\n", "1\n", "2\n"]
 
-    def test_writer_represents_missing_data_correctly(self, tmpdir):
+    def test_writer_represents_missing_data_correctly(self, tmpdir, standard_gwas_parser_basic):
         """The writer should represent explicit missing values as `.` (instead of eg Python None)"""
         reader = readers.IterableReader(["1\t100\tA\tC\tNone", "2\t200\tA\tC\t."],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn, columns=['neg_log_pvalue'], make_tabix=False)
 
@@ -89,9 +88,9 @@ class TestIterableReader:
         with open(out_fn, 'r') as f:
             assert f.readlines() == ["#neg_log_pvalue\n", ".\n", ".\n"]
 
-    def test_can_write_tabixed_output(self, tmpdir):
+    def test_can_write_tabixed_output(self, tmpdir, standard_gwas_parser_basic):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.gz'
         out_fn = reader.write(str(expected_fn), columns=['chrom', 'pos'], make_tabix=True)
 
@@ -105,9 +104,9 @@ class TestIterableReader:
         check_output = readers.TabixReader(out_fn)
         assert len(list(check_output.fetch('1', 1, 300))) == 1, 'Output file can be read with tabix features'
 
-    def test_writer_defaults_to_parser_columns(self, tmpdir):
+    def test_writer_defaults_to_parser_columns(self, tmpdir, standard_gwas_parser_basic):
         reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         expected_fn = tmpdir / 'test.txt'
         out_fn = reader.write(expected_fn)
 
@@ -121,16 +120,16 @@ class TestIterableReader:
         with pytest.raises(exceptions.ConfigurationException, match='column names'):
             reader.write(expected_fn)
 
-    def test_writer_can_send_to_console_stdout(self, capsys):
+    def test_writer_can_send_to_console_stdout(self, capsys, standard_gwas_parser_basic):
         reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         reader.write()
         out, err = capsys.readouterr()
         assert out.splitlines()[0] == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq'
 
-    def test_writer_validates_options_when_sending_to_console(self):
+    def test_writer_validates_options_when_sending_to_console(self, standard_gwas_parser_basic):
         reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
-                                        parser=parsers.standard_gwas_parser_basic)
+                                        parser=standard_gwas_parser_basic)
         with pytest.raises(exceptions.ConfigurationException, match='stream'):
             reader.write(make_tabix=True)
 
@@ -166,10 +165,10 @@ class TestTabixReader:
         all_records = list(iter2)
         assert len(all_records) == 3, "Several records in region"
 
-    def test_throws_an_error_if_index_not_present(self):
+    def test_throws_an_error_if_index_not_present(self, standard_gwas_parser):
         with pytest.raises(FileNotFoundError):
             reader = readers.TabixReader(os.path.join(os.path.dirname(__file__), "data/unsorted.txt"),
-                                         parser=parsers.standard_gwas_parser)
+                                         parser=standard_gwas_parser)
             reader.fetch('1', 2, 3)
 
     def test_filter_criteria_with_tabix(self, simple_tabix_reader):

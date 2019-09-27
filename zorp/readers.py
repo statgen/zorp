@@ -252,13 +252,3 @@ class TabixReader(BaseReader):
 
         iterator = self._tabix.fetch(chrom, start, end)
         return self._make_generator(iterator)
-
-
-def standard_gwas_reader(filename: str, *, parser=parsers.standard_gwas_parser_quick, **kwargs):  # pragma: no cover
-    """
-    Helper: generate a reader based on zorp's "standard" format of known column names and positions
-
-    By default this uses the fast (but fragile) "quick" parser, which is not suitable unless the data exactly follows
-        the standard format. This may be replaced with a more tolerant parser if needed.
-    """
-    return TabixReader(filename, parser=parser, skip_rows=1, **kwargs)

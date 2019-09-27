@@ -11,6 +11,13 @@ from zorp import (
 )
 
 
+class TestTupleLineParser:
+    def test_returns_exception_on_failure(self):
+        with pytest.raises(exceptions.LineParseException, match='must be str or None'):
+            parser = parsers.TupleLineParser(delimiter=0)
+            parser('a b c')
+
+
 class TestBasicVariantContainerHelpers:
     @classmethod
     def setup_class(cls):
@@ -137,9 +144,9 @@ class TestGenericGwasParser:
 
 
 class TestStandardGwasParser:
-    def test_parses_locuszoom_standard_format(self):
+    def test_parses_locuszoom_standard_format(self, standard_gwas_parser):
         line = '1\t100\tA\tC\t10\t0.5\t0.5\t0.25'
-        output = parsers.standard_gwas_parser(line)
+        output = standard_gwas_parser(line)
         assert isinstance(output, parsers.BasicVariant)
         assert output.chrom == '1'
         assert output.pos == 100
@@ -147,97 +154,40 @@ class TestStandardGwasParser:
         assert output.alt == 'C'
         assert output.pvalue == pytest.approx(1e-10)
 
-    def test_enforces_pos_as_int(self):
+    def test_enforces_pos_as_int(self, standard_gwas_parser_basic):
         line = '1\tNOPE\tA\tC\t0.05'
         with pytest.raises(exceptions.LineParseException, match="invalid literal"):
-            parsers.standard_gwas_parser_basic(line)
+            standard_gwas_parser_basic(line)
 
-    def test_handles_missing_ref(self):
+    def test_handles_missing_ref(self, standard_gwas_parser_basic):
         line = '1\t2\tNA\tnull\t0.05'
-        output = parsers.standard_gwas_parser_basic(line)
+        output = standard_gwas_parser_basic(line)
         assert output.ref is None, 'Handles missing ref info'
         assert output.alt is None, 'Handles missing alt info'
 
-    def test_enforces_uppercase_ref_alt(self):
+    def test_enforces_uppercase_ref_alt(self, standard_gwas_parser_basic):
         line = '1\t2\ta\tnull\t.05'
-        output = parsers.standard_gwas_parser_basic(line)
+        output = standard_gwas_parser_basic(line)
         assert output.ref == 'A', 'Outputs uppercase ref'
         assert output.alt is None, 'Alt is a missing value'
         assert output.marker == '1:2', 'Marker is brief format because either ref or alt is missing'
 
-    def test_enforces_readable_pvalue(self):
+    def test_enforces_readable_pvalue(self, standard_gwas_parser_basic):
         line = '1\t100\tA\tC\tNOPE'
         with pytest.raises(exceptions.LineParseException, match="could not convert string to float"):
-            parsers.standard_gwas_parser_basic(line)
+            standard_gwas_parser_basic(line)
 
-    def test_handles_missing_pvalues(self):
+    def test_handles_missing_pvalues(self, standard_gwas_parser_basic):
         line = '1\t100\tA\tC\tNA'
-        p = parsers.standard_gwas_parser_basic(line)
+        p = standard_gwas_parser_basic(line)
         assert p.pvalue is None, "Fills placeholder values with python None"
 
-    def test_parses_beta_stderr_and_af(self):
+    def test_parses_beta_stderr_and_af(self, standard_gwas_parser):
         line = '1\t100\tA\tC\t10\tNA\t0.1\t0.001'
-        p = parsers.standard_gwas_parser(line)
+        p = standard_gwas_parser(line)
         assert p.beta is None, 'Handled missing value for beta'
         assert p.stderr_beta == 0.1, 'Parsed stderr field'
         assert p.alt_allele_freq == 0.001, 'Parsed alt allele frequency'
-
-
-class TestQuickParser:
-    """
-    Verify that the "fast path" parser returns legible output
-    """
-    def test_basic_values(self):
-        line = '1\t100\tA\tC\t10'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert isinstance(output, parsers.BasicVariant)
-        assert output.chrom == '1'
-        assert output.pos == 100
-        assert output.ref == 'A'
-        assert output.alt == 'C'
-        assert output.pvalue == pytest.approx(1e-10)
-
-    def test_delimiter_is_tab_only(self):
-        line = '1\t100\tA B C D\tC\fC\t10'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert output.chrom == '1'
-        assert output.ref == 'A B C D'
-        assert output.alt == 'C\fC'
-        assert output.neg_log_pvalue == 10.0
-
-    def test_handles_missing_and_special_values(self):
-        line = '1\t100\tnull\tNone\tInfinity'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert isinstance(output, parsers.BasicVariant)
-        assert output.chrom == '1'
-        assert output.pos == 100
-        assert output.ref is None
-        assert output.alt is None
-        assert math.isinf(output.neg_log_pvalue)
-
-    def test_throws_errors_for_totally_invalid_line(self):
-        line = '1\t100\tA\tT\tBorkborkbork'
-        with pytest.raises(exceptions.LineParseException):
-            parsers.standard_gwas_parser_quick(line)
-
-    def test_fetches_extended_format_beta_stderr(self):
-        """Older files will have a few core columns. Newer files will have additional fields."""
-        line = '1\t100\tnull\tNone\tInfinity\t0.5\t0.1'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert output.beta == 0.5, 'Parsed beta'
-        assert output.stderr_beta == 0.1, 'Parsed stderr'
-
-    def test_handles_explicit_missing_values_in_beta_stderr(self):
-        line = '1\t100\tnull\tNone\tInfinity\tNA\t0.1'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert output.beta is None, 'Parsed beta'
-        assert output.stderr_beta == 0.1, 'Parsed stderr'
-
-    def test_fetches_extended_format_beta_stderr_altfreq(self):
-        """Older files will have a few core columns. Newer files will have additional fields."""
-        line = '1\t100\tnull\tNone\tInfinity\t0.5\t0.1\t0.001'
-        output = parsers.standard_gwas_parser_quick(line)
-        assert output.alt_allele_freq == 0.001, 'Parsed beta'
 
 
 class TestUtils:

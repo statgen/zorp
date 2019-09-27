@@ -162,7 +162,8 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable, ov
     ]
     config = {}
     for col_name, col_choices in to_find:
-        col = utils.human_to_zero(overrides.get(col_name)) or find_column(col_choices, headers_marked, threshold=1)  # type: ignore
+        col = utils.human_to_zero(overrides.get(col_name)) or \
+              find_column(col_choices, headers_marked, threshold=1)  # type: ignore
         if col is None:
             return {}
 
@@ -339,15 +340,15 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
         ['rsid', 'rsid_col']
     ]
 
-    if not all(name in header_names for name, _ in required_cols):
-        raise exceptions.SnifferException('File must specify all columns required by the standard format')
+    # if not all(name in header_names for name, _ in required_cols):
+    #     raise exceptions.SnifferException('File must specify all columns required by the standard format')
 
     for header, out_field in required_cols:
         try:
             index = header_names.index(header)
             column_config[out_field] = index + 1
-        except IndexError:
-            raise exceptions.SnifferException('File does not have all required columns')
+        except ValueError:
+            raise exceptions.SnifferException('File must specify all columns required by the standard format')
 
     for header, out_field in optional_cols:
         try:
@@ -357,5 +358,5 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
             pass
 
     options = {**column_config, **default_parser_options, **parser_options}
-    parser = parsers.GenericGwasLineParser(**options)
+    parser = parsers.GenericGwasLineParser(**options)  # type: ignore
     return reader_class(filename, skip_rows=n_headers, parser=parser)

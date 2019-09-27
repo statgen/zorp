@@ -79,33 +79,13 @@ class AbstractLineParser(abc.ABC):
                  container: ty.Callable[..., object] = tuple,
                  **kwargs):
         """
-        :param container: A data structure (eg namedtuple) that will be populated with the parsed results
+        :param container: A data structure (eg tuple or slotted object) that will be populated with the parsed results
         """
         self._container = container
 
     @abc.abstractmethod
-    def _split_fields(self, row: str):
-        """Turn a row of text into separate fields, eg by splitting a delimiter or deserializing JSON"""
+    def __call__(self, row: str) -> object:
         pass
-
-    @abc.abstractmethod
-    def _process_values(self, values: ty.Sequence) -> tuple:
-        """Convert the raw field values into something useful. This includes field selection and type coercion."""
-        pass
-
-    @abc.abstractmethod
-    def _output_container(self, values: ty.Iterable):
-        """Populate the output container with the extracted results"""
-        pass
-
-    def __call__(self, row: str) -> BasicVariant:
-        try:
-            fields = self._split_fields(row)
-            values = self._process_values(fields)
-            container = self._output_container(values)
-        except Exception as e:
-            raise exceptions.LineParseException(str(e), line=row)
-        return container
 
 
 class TupleLineParser(AbstractLineParser):
@@ -119,14 +99,12 @@ class TupleLineParser(AbstractLineParser):
         super(TupleLineParser, self).__init__(*args, container=container, **kwargs)
         self._delimiter = delimiter
 
-    def _split_fields(self, row: str):
-        return row.strip().split(self._delimiter)
-
-    def _process_values(self, values: ty.Sequence):
-        return values
-
-    def _output_container(self, values):
-        return self._container(values)
+    def __call__(self, line: str):
+        try:
+            values = line.strip().split(self._delimiter)
+            return self._container(values)
+        except Exception as e:
+            raise exceptions.LineParseException(str(e), line=line)
 
 
 class GenericGwasLineParser(TupleLineParser):
@@ -135,6 +113,14 @@ class GenericGwasLineParser(TupleLineParser):
 
     Constructor expects human-friendly column numbers (first = column 1)
     """
+    # Provide faster attribute access because these field lookups will happen a *lot*
+    __slots__ = [
+        '_container',
+        '_chrom_col', 'rsid_col', '_pos_col', '_ref_col', '_alt_col', '_marker_col', '_pvalue_col',
+        '_pvalue_col', '_beta_col', '_stderr_col', '_allele_freq_col', '_allele_count_col',
+        '_n_samples_col', '_is_neg_log_pvalue', '_is_alt_effect'
+    ]
+
     def __init__(self, *args,
                  container: ty.Callable[..., BasicVariant] = BasicVariant,
                  # Variant identifiers: marker OR individual
@@ -156,7 +142,7 @@ class GenericGwasLineParser(TupleLineParser):
                  is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
                  is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
                  **kwargs):
-        super(GenericGwasLineParser, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # All GWAS parsers can specify
         self._container = container
@@ -207,59 +193,57 @@ class GenericGwasLineParser(TupleLineParser):
 
         return is_valid
 
-    def _split_fields(self, row: str):
-        fields = super(GenericGwasLineParser, self)._split_fields(row)
-        if len(fields) == 1:
-            raise exceptions.LineParseException(
-                'Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
-        return fields
-
     @property
     def fields(self) -> ty.Container:
         return self._container._fields  # type: ignore
 
-    def _process_values(self, values: ty.Sequence):
-        # Fetch values
-        ref = None
-        alt = None
-        if self._marker_col is not None:
-            chrom, pos, ref, alt = utils.parse_marker(values[self._marker_col])
-        else:
-            # TODO: Should we check for, and strip, the letters chr?
-            chrom = values[self._chrom_col]
-            pos = values[self._pos_col]
-
-        # Explicit columns will override a value from the marker, by design
-        if self._ref_col is not None:
-            ref = values[self._ref_col]
-
-        if self._alt_col is not None:
-            alt = values[self._alt_col]
-
-        pval = values[self._pvalue_col]
-
-        # Some optional fields
-        beta = None
-        stderr_beta = None
-        alt_allele_freq = None
-        allele_count = None
-        n_samples = None
-
-        if self._beta_col is not None:
-            beta = values[self._beta_col]
-
-        if self._stderr_col is not None:
-            stderr_beta = values[self._stderr_col]
-
-        if self._allele_freq_col is not None:
-            alt_allele_freq = values[self._allele_freq_col]
-
-        if self._allele_count_col is not None:
-            allele_count = values[self._allele_count_col]
-            n_samples = values[self._n_samples_col]
-
-        # Perform type coercion
+    def __call__(self, line: str):
         try:
+            fields = line.strip().split(self._delimiter)
+            if len(fields) == 1:
+                raise exceptions.LineParseException(
+                    'Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
+
+            # Fetch values
+            ref = None
+            alt = None
+            if self._marker_col is not None:
+                chrom, pos, ref, alt = utils.parse_marker(fields[self._marker_col])
+            else:
+                # TODO: Should we check for, and strip, the letters chr?
+                chrom = fields[self._chrom_col]
+                pos = fields[self._pos_col]
+
+            # Explicit columns will override a value from the marker, by design
+            if self._ref_col is not None:
+                ref = fields[self._ref_col]
+
+            if self._alt_col is not None:
+                alt = fields[self._alt_col]
+
+            pval = fields[self._pvalue_col]
+
+            # Some optional fields
+            beta = None
+            stderr_beta = None
+            alt_allele_freq = None
+            allele_count = None
+            n_samples = None
+
+            if self._beta_col is not None:
+                beta = fields[self._beta_col]
+
+            if self._stderr_col is not None:
+                stderr_beta = fields[self._stderr_col]
+
+            if self._allele_freq_col is not None:
+                alt_allele_freq = fields[self._allele_freq_col]
+
+            if self._allele_count_col is not None:
+                allele_count = fields[self._allele_count_col]
+                n_samples = fields[self._n_samples_col]
+
+            # Perform type coercion
             log_pval = utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
             pos = int(pos)
             if beta is not None:
@@ -274,93 +258,21 @@ class GenericGwasLineParser(TupleLineParser):
                     n_samples=n_samples,
                     is_alt_effect=self._is_alt_effect
                 )
-        except Exception as e:
-            raise exceptions.LineParseException(str(e), line=values)
 
-        # Some old GWAS files simply won't provide ref or alt information, and the parser will need to do without
-        if ref in MISSING_VALUES:
-            ref = None
-
-        if isinstance(ref, str):
-            ref = ref.upper()
-
-        if isinstance(alt, str):
-            alt = alt.upper()
-
-        if alt in MISSING_VALUES:
-            alt = None
-
-        return chrom, pos, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq
-
-    def _output_container(self, values):
-        return self._container(*values)
-
-
-class QuickGwasLineParser:
-    """
-    A "fast path" parser used for pre-standardized input. This parser gains speed by dispensing with
-    all the usual re-use and "bad data" tolerance of a more generic tool
-    """
-    def __init__(self, *, container: ty.Type[BasicVariant] = BasicVariant):
-        # The only thing that can be configured is the container (in case we want to support extra fields in the future)
-        self._container = container
-
-    @property
-    def fields(self) -> ty.Iterable:  # pragma: no cover
-        return self._container._fields
-
-    def __call__(self, row: str) -> BasicVariant:
-        # Assume the file format is *exactly* standardized with no extra fields of any kind, no leading or trailing
-        #   spaces, and all uses of the delimiter mean what we think they do
-        try:
-            cols = row.strip().split('\t')  # The standard is defined as a tab-delimited file; strip trailing newlines
-            chrom, pos, ref, alt, log_pvalue = cols[:5]  # These fields are always required
-
-            # For fwd compatibility, the quick-parser will assume that new columns become mandatory & are append-only
-            if len(cols) > 5:
-                beta = cols[5]
-                stderr_beta = cols[6]
-                beta = None if beta in MISSING_VALUES else float(beta)
-                stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
-            else:
-                beta = None
-                stderr_beta = None
-
-            if len(cols) > 7:
-                alt_allele_freq = cols[7]
-            else:
-                alt_allele_freq = None
-
-            pos = int(pos)
+            # Some old GWAS files simply won't provide ref or alt information, and the parser will need to do without
             if ref in MISSING_VALUES:
                 ref = None
+
+            if isinstance(ref, str):
+                ref = ref.upper()
 
             if alt in MISSING_VALUES:
                 alt = None
 
-            log_pvalue = utils.parse_pval_to_log(log_pvalue, is_neg_log=True)
+            if isinstance(alt, str):
+                alt = alt.upper()
 
-            alt_allele_freq = utils.parse_allele_frequency(freq=alt_allele_freq, is_alt_effect=True)
+            container = self._container(chrom, pos, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq)
         except Exception as e:
-            raise exceptions.LineParseException(str(e), line=row)
-
-        return self._container(chrom, pos, ref, alt, log_pvalue, beta, stderr_beta, alt_allele_freq)
-
-
-####
-# Example parsers pre-configured for the LocusZoom standard file format
-# Only check the "mandatory" fields
-standard_gwas_parser_basic = GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                                   pvalue_col=5, is_neg_log_pvalue=True,
-                                                   delimiter='\t')
-
-# Parse the "full" standard format (including any additional fields added in the future)
-standard_gwas_parser = GenericGwasLineParser(chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
-                                             pvalue_col=5, is_neg_log_pvalue=True,
-                                             beta_col=6, stderr_beta_col=7,
-                                             allele_freq_col=8,
-                                             is_alt_effect=True,
-                                             delimiter='\t')
-
-# A "fast" standard parser
-standard_gwas_parser_quick = QuickGwasLineParser()
+            raise exceptions.LineParseException(str(e), line=line)
+        return container
