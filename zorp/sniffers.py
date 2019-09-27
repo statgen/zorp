@@ -162,7 +162,7 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable, ov
     ]
     config = {}
     for col_name, col_choices in to_find:
-        col = utils.human_to_zero(overrides.get(col_name)) or find_column(col_choices, headers_marked)  # type: ignore
+        col = utils.human_to_zero(overrides.get(col_name)) or find_column(col_choices, headers_marked, threshold=1)  # type: ignore
         if col is None:
             return {}
 
@@ -295,3 +295,67 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
         parser = parsers.GenericGwasLineParser(**options)
 
     return reader_class(filename, skip_rows=to_skip, parser=parser)
+
+
+def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
+                        parser: parsers.AbstractLineParser = None,
+                        parser_options: dict = None,
+                        delimiter: str = '\t') -> readers.BaseReader:
+    """
+    Return a fully configured reader/parser for the harmonized GWAS format used by zorp
+
+    This is not a tool for generic formats; it is used to locate optional columns and adjust column numbers when
+        present. Because it trusts the user to only use this on standard data, some datatype validation is skipped.
+
+    This will try to identify the following options:
+    - Type of file (text, gzip, etc)
+    - How to parse the file (unless a parser is explicitly provided). A "parser_overrides" option can be used to
+      provide extra info for the parser (eg, container)
+
+    Supports receiving an iterable (instead of filename), primarily to support unit testing
+    """
+    reader_class = get_reader(filename)
+    n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
+
+    header_names = header_text.lower().lstrip('#').split(delimiter)
+
+    parser_options = parser_options or {}
+    parser_options = {k: v for k, v in parser_options.items() if v is not None}  # all kwargs must have values
+
+    if parser and parser_options:
+        raise exceptions.ConfigurationException(
+            'You have specified an exact `parser` and partial `parser_options`. These options are mutually exclusive.')
+
+    default_parser_options = {'is_neg_log_pvalue': True, 'is_alt_effect': True}
+    column_config = {}
+
+    required_cols = [
+        ['chrom', 'chrom_col'], ['pos', 'pos_col'], ['ref', 'ref_col'], ['alt', 'alt_col'],
+        ['neg_log_pvalue', 'pvalue_col']
+    ]
+    optional_cols = [
+        ['beta', 'beta_col'], ['stderr_beta', 'stderr_beta_col'],
+        ['alt_allele_freq', 'allele_freq_col'],
+        ['rsid', 'rsid_col']
+    ]
+
+    if not all(name in header_names for name, _ in required_cols):
+        raise exceptions.SnifferException('File must specify all columns required by the standard format')
+
+    for header, out_field in required_cols:
+        try:
+            index = header_names.index(header)
+            column_config[out_field] = index + 1
+        except IndexError:
+            raise exceptions.SnifferException('File does not have all required columns')
+
+    for header, out_field in optional_cols:
+        try:
+            index = header_names.index(header)
+            column_config[out_field] = index + 1
+        except ValueError:
+            pass
+
+    options = {**column_config, **default_parser_options, **parser_options}
+    parser = parsers.GenericGwasLineParser(**options)
+    return reader_class(filename, skip_rows=n_headers, parser=parser)

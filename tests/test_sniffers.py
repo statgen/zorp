@@ -147,7 +147,8 @@ class TestGetEffectSizeColumns:
         assert actual == {}
 
 
-class TestFileFormatDetection:
+class TestGenericSniffer:
+    """Tests for guess_gwas_generic"""
     def test_warns_if_file_lacks_required_fields(self):
         data = _fixture_to_strings([
             ['rsid', 'pval'],
@@ -196,6 +197,8 @@ class TestFileFormatDetection:
 
         assert h(actual._parser._beta_col) == 6, 'beta field detected'
         assert h(actual._parser._stderr_col) == 7, 'stderr_beta field detected'
+        assert actual._parser._allele_freq_col is None, 'Sniffer does not try to detect allele freq'
+        # ...yet. Allele freqs are hard to guess reliably, but maybe we will improve.
 
     def test_can_guess_bolt_lmm(self):
         data = _fixture_to_strings([
@@ -402,3 +405,72 @@ class TestFileFormatDetection:
 
         assert h(actual._parser._beta_col) == 6, 'beta field detected'
         assert h(actual._parser._stderr_col) == 7, 'stderr_beta field detected'
+
+
+class TestStandardSniffer:
+    """Tests for guess_gwas_standard, which locates column indices in any order"""
+    def test_finds_all_possible_columns(self):
+        # Tracks the "standard format" defined as a convenience parser
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq'],
+            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
+        ])
+
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq'],
+            ['1', '762320', 'C', 'T', '0.36947042857317597', '0.5', '0.1', '0.5']
+        ])
+        actual = sniffers.guess_gwas_standard(data)
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+
+        assert h(actual._parser._pvalue_col) == 5, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
+
+        assert h(actual._parser._beta_col) == 6, 'beta field detected'
+        assert h(actual._parser._stderr_col) == 7, 'stderr_beta field detected'
+        assert h(actual._parser._allele_freq_col) == 8, 'Standard files mean allele freq meaning is clear'
+
+    def test_finds_file_with_only_required_columns(self):
+        # Tracks the "standard format" defined as a convenience parser
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue'],
+            ['1', '762320', 'C', 'T', '0.36947042857317597']
+        ])
+        actual = sniffers.guess_gwas_standard(data)
+        assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 3, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 4, 'Found index of alt col'
+
+        assert h(actual._parser._pvalue_col) == 5, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
+
+    def test_finds_some_opt_colums_out_of_order(self):
+        # Tracks the "standard format" defined as a convenience parser
+        data = _fixture_to_strings([
+            ['#neg_log_pvalue', 'beta', 'chrom', 'pos', 'ref', 'alt', 'alt_allele_freq'],
+            ['7.2', '0.5', 'X', '12', '144', 'A', 'T', '0.1', '0.5']
+        ])
+        actual = sniffers.guess_gwas_standard(data)
+        assert h(actual._parser._chrom_col) == 3, 'Found index of chr col'
+        assert h(actual._parser._pos_col) == 4, 'Found index of pos col'
+        assert h(actual._parser._ref_col) == 5, 'Found index of ref col'
+        assert h(actual._parser._alt_col) == 6, 'Found index of alt col'
+
+        assert h(actual._parser._pvalue_col) == 1, 'Found index of pval col'
+        assert actual._parser._is_neg_log_pvalue is True, 'Determined whether is log'
+
+        assert h(actual._parser._beta_col) == 2, 'beta field detected'
+        assert actual._parser._stderr_col is None , 'no stderr_beta field detected'
+        assert h(actual._parser._allele_freq_col) == 7, 'Standard files mean allele freq meaning is clear'
+
+    def test_warns_if_required_columns_missing(self):
+        data = _fixture_to_strings([
+            ['#chrom', 'pos', 'ref', 'alt', 'beta'],
+            ['1', '762320', 'C', 'T', '0.5']
+        ])
+        with pytest.raises(exceptions.SnifferException, match='must specify all columns'):
+            sniffers.guess_gwas_standard(data)
