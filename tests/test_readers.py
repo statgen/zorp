@@ -111,7 +111,7 @@ class TestIterableReader:
         out_fn = reader.write(expected_fn)
 
         with open(out_fn, 'r') as f:
-            assert f.readline() == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq\n'
+            assert f.readline() == '#chrom\tpos\trsid\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq\n'
 
     def test_writer_needs_to_know_column_names(self, tmpdir):
         reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
@@ -125,7 +125,7 @@ class TestIterableReader:
                                         parser=standard_gwas_parser_basic)
         reader.write()
         out, err = capsys.readouterr()
-        assert out.splitlines()[0] == '#chrom\tpos\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq'
+        assert out.splitlines()[0] == '#chrom\tpos\trsid\tref\talt\tneg_log_pvalue\tbeta\tstderr_beta\talt_allele_freq'
 
     def test_writer_validates_options_when_sending_to_console(self, standard_gwas_parser_basic):
         reader = readers.IterableReader(['1\t100\tA\tC\t0.05', '2\t200\tA\tC\t5e-8'],
@@ -218,3 +218,22 @@ class TestFiltering:
 
         # File will act on it
         assert len(list(simple_file_reader)) == 7, "output was restricted to the expected rows"
+
+
+class TestTransforms:
+    def test_transform_modifies_parsed_field_value(self, simple_file_reader):
+        reader = simple_file_reader.add_transform('chrom', lambda parsed: 'Y')
+        assert all(row.chrom == 'Y' for row in reader), 'All chromosomes have been replaced with a new value'
+
+    def test_named_field_parsers_can_check_that_dest_field_exists(self, simple_file_reader):
+        with pytest.raises(exceptions.ConfigurationException, match='does not have a field'):
+            simple_file_reader.add_transform('dummy_field', lambda parsed: 'Y')
+
+    def test_transform_must_be_function(self, simple_file_reader):
+        with pytest.raises(exceptions.ConfigurationException, match='must specify a function'):
+            simple_file_reader.add_transform('chrom', 12)
+
+    def test_named_fields_require_named_field_parser(self):
+        reader = readers.IterableReader([[1,2,3]], parser=None)
+        with pytest.raises(exceptions.ConfigurationException, match='name-based'):
+            reader.add_transform('chrom', lambda parsed: 'Y')

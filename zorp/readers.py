@@ -43,6 +43,7 @@ class BaseReader(abc.ABC):
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
         self._parser = parser
         self._filters: list = []
+        self._transforms: list = []
 
         # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
@@ -71,6 +72,7 @@ class BaseReader(abc.ABC):
             available for inspection later)
         """
         use_filters = len(self._filters)
+        use_transforms = len(self._transforms)
         for i, row in enumerate(iterator):
             if not row:
                 # Skip blank lines (eg at end of file)
@@ -92,6 +94,10 @@ class BaseReader(abc.ABC):
 
                 if use_filters and not self._apply_filters(parsed):  # avoid expensive function call if no filters used
                     continue
+
+                if use_transforms:
+                    for field_name, func in self._transforms:
+                        setattr(parsed, field_name, func(parsed))
                 yield parsed
 
     ######
@@ -109,6 +115,7 @@ class BaseReader(abc.ABC):
          - A value that will exactly match, or
          - A function that specifies whether to accept this row. Method signature: (val, row) => bool
         """
+        # TODO: consider revising the api from awkward field/line to something that explicitly receives the BasicVariant
         if not self._parser:
             raise exceptions.ConfigurationException(
                 "Filtering features require specifying a parser that supports name-based field access.")
@@ -120,6 +127,25 @@ class BaseReader(abc.ABC):
         self._filters.append([
             field_name,
             match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match  # type: ignore
+        ])
+        return self
+
+    def add_transform(self, field_name: str, transform_func: ty.Callable[[object], object]) -> 'BaseReader':
+        if not self._parser:
+            raise exceptions.ConfigurationException(
+                "Transform features require specifying a parser that supports name-based field access.")
+
+        # Sanity check if possible, otherwise, just hope the parser returns something with named fields!
+        if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:  # type: ignore
+            raise exceptions.ConfigurationException("The parser does not have a field by this name")
+
+        if not isinstance(transform_func, collections.abc.Callable):
+            raise exceptions.ConfigurationException(
+                "Transformation must specify a function that receives variant data and returns a value")
+
+        self._transforms.append([
+            field_name,
+            transform_func
         ])
         return self
 

@@ -19,14 +19,14 @@ class BasicVariant:
     """
     Store GWAS results in a predictable format, with a minimal set of fields; optimize for name-based attribute access
     """
-    # TODO: DRY these lists; this is a bit silly
     # Slots specify the data  this holds (a performance optimization); _fields is human-curated list
-    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
-    _fields = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
+    __slots__ = ('chrom', 'pos', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq', 'rsid')
+    _fields = ('chrom', 'pos', 'rsid', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
 
-    def __init__(self, chrom, pos, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
+    def __init__(self, chrom, pos, rsid, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
         self.chrom: str = chrom
         self.pos: int = pos
+        self.rsid: str = rsid
         self.ref: str = ref
         self.alt: str = alt
         self.neg_log_pvalue: float = neg_log_pvalue
@@ -37,7 +37,6 @@ class BasicVariant:
         self.stderr_beta: float = stderr_beta
 
         self.alt_allele_freq = alt_allele_freq
-        # rsid: str
 
     @property
     def pvalue(self) -> ty.Union[float, None]:
@@ -132,6 +131,7 @@ class GenericGwasLineParser(TupleLineParser):
                  # Other required data
                  pvalue_col: int = None, pval_col: int = None,  # Legacy alias
                  # Optional fields
+                 rsid_col: int = None,
                  beta_col: int = None,
                  stderr_beta_col: int = None,
 
@@ -158,6 +158,7 @@ class GenericGwasLineParser(TupleLineParser):
         # Support legacy alias for field name
         self._pvalue_col = utils.human_to_zero(pvalue_col) if pvalue_col is not None else utils.human_to_zero(pval_col)
 
+        self._rsid_col = utils.human_to_zero(rsid_col)
         self._beta_col = utils.human_to_zero(beta_col)
         self._stderr_col = utils.human_to_zero(stderr_beta_col)
 
@@ -210,9 +211,13 @@ class GenericGwasLineParser(TupleLineParser):
             if self._marker_col is not None:
                 chrom, pos, ref, alt = utils.parse_marker(fields[self._marker_col])
             else:
-                # TODO: Should we check for, and strip, the letters chr?
                 chrom = fields[self._chrom_col]
                 pos = fields[self._pos_col]
+
+            if chrom.startswith('chr'):
+                chrom = chrom[3:]
+
+            chrom = chrom.upper()
 
             # Explicit columns will override a value from the marker, by design
             if self._ref_col is not None:
@@ -224,11 +229,19 @@ class GenericGwasLineParser(TupleLineParser):
             pval = fields[self._pvalue_col]
 
             # Some optional fields
+            rsid = None
             beta = None
             stderr_beta = None
             alt_allele_freq = None
             allele_count = None
             n_samples = None
+
+            if self._rsid_col is not None:
+                rsid = fields[self._rsid_col]
+                if rsid in MISSING_VALUES:
+                    rsid = None
+                elif not rsid.startswith('rs'):
+                    rsid = 'rs' + rsid
 
             if self._beta_col is not None:
                 beta = fields[self._beta_col]
@@ -272,7 +285,7 @@ class GenericGwasLineParser(TupleLineParser):
             if isinstance(alt, str):
                 alt = alt.upper()
 
-            container = self._container(chrom, pos, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq)
+            container = self._container(chrom, pos, rsid, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=line)
         return container

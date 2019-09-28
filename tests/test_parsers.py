@@ -21,7 +21,7 @@ class TestTupleLineParser:
 class TestBasicVariantContainerHelpers:
     @classmethod
     def setup_class(cls):
-        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, 0.75)
+        vals = ('1', 2, None, 'A', 'G', math.inf, 0.1, 0.1, 0.75)
         container = parsers.BasicVariant(*vals)
 
         cls.vals = vals
@@ -39,7 +39,7 @@ class TestBasicVariantContainerHelpers:
     def test_maf_means_minor_means_lt_half(self):
         assert self.container.maf == 0.25, 'Correctly orients MAF to minor'
 
-        vals = ('1', 2, 'A', 'G', math.inf, 0.1, 0.1, None)
+        vals = ('1', 2, None, 'A', 'G', math.inf, 0.1, 0.1, None)
         assert parsers.BasicVariant(*vals).maf is None, "Doesn't convert missing data"
 
     def test_dict_serialization(self):
@@ -47,6 +47,7 @@ class TestBasicVariantContainerHelpers:
         expected = {
             'chrom': '1',
             'pos': 2,
+            'rsid': None,
             'ref': 'A',
             'alt': 'G',
             'neg_log_pvalue': math.inf,
@@ -109,6 +110,23 @@ class TestGenericGwasParser:
         assert p.ref == 'A', 'Finds ref'
         assert p.alt == 'C', 'Finds alt'
         assert p.marker == '2:100_A/C', 'Turns a messy marker into a cleaned standardized format'
+
+    def test_parses_chr_to_clean_format(self):
+        line = 'chrx\t100\t.05'
+        special_parser = parsers.GenericGwasLineParser(chrom_col=1, pos_col=2, pvalue_col=3, delimiter='\t')
+        p = special_parser(line)
+        assert p.chrom == 'X', 'Strips prefix from chromosome labels and always uses uppercase letters'
+
+    def test_parses_rsid_to_clean_format(self):
+        scenarios = [
+            ('chrx\t100\t.05\trs12', 'rs12'), # Handles valid rsid as given
+            ('chrx\t100\t.05\tNA', None),  # Missing values
+            ('chrx\t100\t.05\t99', 'rs99'),  # Ensures prefix is present
+        ]
+        parser = parsers.GenericGwasLineParser(chrom_col=1, pos_col=2, pvalue_col=3, rsid_col=4, delimiter='\t')
+        for text, expected in scenarios:
+            actual = parser(text).rsid
+            assert actual == expected, f'Found correct rsid from: {text}'
 
     def test_warns_about_incorrect_delimiter(self):
         """
