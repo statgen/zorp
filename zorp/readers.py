@@ -139,7 +139,7 @@ class BaseReader(abc.ABC):
         if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:  # type: ignore
             raise exceptions.ConfigurationException("The parser does not have a field by this name")
 
-        if not isinstance(transform_func, collections.abc.Callable):
+        if not isinstance(transform_func, collections.abc.Callable):  # type: ignore
             raise exceptions.ConfigurationException(
                 "Transformation must specify a function that receives variant data and returns a value")
 

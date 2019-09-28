@@ -234,6 +234,6 @@ class TestTransforms:
             simple_file_reader.add_transform('chrom', 12)
 
     def test_named_fields_require_named_field_parser(self):
-        reader = readers.IterableReader([[1,2,3]], parser=None)
+        reader = readers.IterableReader([[1, 2, 3]], parser=None)
         with pytest.raises(exceptions.ConfigurationException, match='name-based'):
             reader.add_transform('chrom', lambda parsed: 'Y')

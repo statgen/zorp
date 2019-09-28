@@ -119,7 +119,7 @@ class TestGenericGwasParser:
 
     def test_parses_rsid_to_clean_format(self):
         scenarios = [
-            ('chrx\t100\t.05\trs12', 'rs12'), # Handles valid rsid as given
+            ('chrx\t100\t.05\trs12', 'rs12'),  # Handles valid rsid as given
             ('chrx\t100\t.05\tNA', None),  # Missing values
             ('chrx\t100\t.05\t99', 'rs99'),  # Ensures prefix is present
         ]
