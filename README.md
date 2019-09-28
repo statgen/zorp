@@ -21,12 +21,16 @@ need to do some basic data preparation before using.
 ```python
 from zorp import readers, parsers
 
-# Create a reader instance
-reader = readers.TabixReader('input.bgz', parser=parsers.standard_gwas_parser, skip_rows=1, skip_errors=True)
+# Create a reader instance. This example specifies each option for clarity, but sniffers are provided to auto-detect 
+#   common format options.
+sample_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, is_neg_log_pvalue=True,
+                                              delimiter='\t')
+reader = readers.TabixReader('input.bgz', parser=sample_parser, skip_rows=1, skip_errors=True)
 
 # We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
-reader.add_filter('chrom', '19')
-reader.add_filter('neg_log_pvalue', lambda val, line: val > 7.301)
+reader.add_filter('chrom', '19')  # Exact value match
+reader.add_filter(lambda row: row.neg_log_pvalue > 7.301)  # Provide a function that can operate on all parsed fields
+reader.add_filter('neg_log_pvalue')  # Exclude values with missing data for the named field  
 
 # After parsing the data, values of pre-defined fields can be cleaned up, or used to perform lookups
 reader.add_transform('rsid', lambda variant: some_rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))

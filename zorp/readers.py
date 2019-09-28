@@ -60,10 +60,6 @@ class BaseReader(abc.ABC):
 
     ######
     # Internal helper methods; should not need to override below this line
-    def _apply_filters(self, parsed_row: tuple) -> bool:
-        """Determine whether a given row satisfies all of the applied filters"""
-        return all(test_func(getattr(parsed_row, field_name, None), parsed_row)
-                   for field_name, test_func in self._filters)
 
     def _make_generator(self, iterator: ty.Iterator[str]) -> ty.Iterator:
         """
@@ -92,45 +88,57 @@ class BaseReader(abc.ABC):
                         raise exceptions.TooManyBadLinesException(error_list=self.errors)
                     continue
 
-                if use_filters and not self._apply_filters(parsed):  # avoid expensive function call if no filters used
-                    continue
-
                 if use_transforms:
                     for field_name, func in self._transforms:
                         setattr(parsed, field_name, func(parsed))
+
+                if use_filters and not all(test_func(parsed) for test_func in self._filters):
+                    continue
                 yield parsed
 
     ######
     # User-facing API
-    def add_filter(self,
-                   field_name: ty.Union[int, str],
-                   match: ty.Union[ty.Any,
-                                   ty.Callable[[ty.Any, object], bool]]) -> 'BaseReader':
+    def add_filter(self, *args) -> 'BaseReader':
         """
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
+        Filters are applied after all parsing and transforms are complete.
+
+        There are two ways to specify a filter:
+        - `add_filter('field_name') requires that the value not be missing. Equivalent to "is not None".
+        - `add_filter('field_name', value)` checks that the field has this exact value.
+        - `add_filter(lambda parsed: bool)` runs a user-provided function on whatever is in this row.
 
         The `field_name` should match a field in whatever object the parser returns. (attribute, calc'd property, etc)
-
-        `match` specified the criterion used to test this field/row. It can be:
-         - A value that will exactly match, or
-         - A function that specifies whether to accept this row. Method signature: (val, row) => bool
         """
-        # TODO: consider revising the api from awkward field/line to something that explicitly receives the BasicVariant
-        if not self._parser:
-            raise exceptions.ConfigurationException(
-                "Filtering features require specifying a parser that supports name-based field access.")
-
-        # Sanity check if possible, otherwise, just hope the parser returns something with named fields!
-        if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:  # type: ignore
-            raise exceptions.ConfigurationException("The parser does not have a field by this name")
-
-        self._filters.append([
-            field_name,
-            match if isinstance(match, collections.abc.Callable) else lambda val, row: val == match  # type: ignore
-        ])
+        if len(args) == 1:
+            spec = args[0]
+            if isinstance(spec, collections.abc.Callable):  # type: ignore
+                self._filters.append(spec)
+            elif isinstance(spec, str):
+                self._filters.append(lambda parsed: getattr(parsed, spec) is not None)
+            else:
+                raise exceptions.ConfigurationException('Single argument must be either a function or a field name')
+        elif len(args) == 2:
+            # Exact value match
+            field_name, target_value = args
+            self._filters.append(lambda parsed: getattr(parsed, field_name) == target_value)
+        else:
+            raise exceptions.ConfigurationException('Invalid filter format requested')
         return self
 
     def add_transform(self, field_name: str, transform_func: ty.Callable[[object], object]) -> 'BaseReader':
+        """
+        Transform the value of an individual field within a row. Each transform is a function that receives
+          the parsed row and returns a single value. This can be used to clean up how values are presented
+          ("chr1" vs "chr1"), and also for things that a generic parser may be ill-suited to infer from the text of the
+          file. (eg, rsid lookups require knowing reference build, which is usually specified as metadata).
+
+        Example: `add_transform('rsid', lookup_func)` sets `parsed.rsid` to the result of the lookup.
+
+        At present, zorp is written with the restrictive philosophy that each field has a well-understood universal
+          meaning, consistent across all files that use that parser. Transforms are allowed to modify existing known
+          fields, but not add new fields. (a side effect: the parser must support name-based field access)
+        """
         if not self._parser:
             raise exceptions.ConfigurationException(
                 "Transform features require specifying a parser that supports name-based field access.")

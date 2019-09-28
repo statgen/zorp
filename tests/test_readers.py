@@ -52,18 +52,6 @@ class TestIterableReader:
         assert results == ["walrus", "carpenter"], "Returns unparsed data"
 
     ######
-    # Filters data
-    def test_unparsed_mode_cannot_filter(self):
-        reader = readers.IterableReader([], parser=None)
-        with pytest.raises(exceptions.ConfigurationException):
-            reader.add_filter('chrom', 'value')
-
-    def test_named_filter_support_requires_field_with_name(self, standard_gwas_parser):
-        reader = readers.IterableReader([], parser=standard_gwas_parser)
-        with pytest.raises(exceptions.ConfigurationException):
-            reader.add_filter("fake_field", "value")
-
-    ######
     # Writes files
     def test_can_write_output(self, tmpdir, standard_gwas_parser_basic):
         reader = readers.IterableReader(["1\t100\tA\tC\t0.05", "2\t200\tA\tC\t5e-8"],
@@ -172,7 +160,9 @@ class TestTabixReader:
             reader.fetch('1', 2, 3)
 
     def test_filter_criteria_with_tabix(self, simple_tabix_reader):
-        iterator = simple_tabix_reader.add_filter('ref', 'G').fetch("X", 2_600_000, 3_000_000)
+        iterator = simple_tabix_reader\
+            .add_filter('ref', 'G')\
+            .fetch("X", 2_600_000, 3_000_000)
         all_records = list(iterator)
         assert len(all_records) == 2, "The region query obeyed filters"
 
@@ -205,7 +195,7 @@ class TestFileReader:
 class TestFiltering:
     def test_filter_criteria_with_method(self, simple_file_reader):
         # Can define a filter using any function
-        simple_file_reader.add_filter("chrom", lambda val, row: val == "1")
+        simple_file_reader.add_filter(lambda row: row.chrom == "1")
         assert len(simple_file_reader._filters) == 1
 
         # File will act on it
@@ -218,6 +208,15 @@ class TestFiltering:
 
         # File will act on it
         assert len(list(simple_file_reader)) == 7, "output was restricted to the expected rows"
+
+    def test_filter_with_just_field_name_excludes_missing_rows(self, standard_gwas_parser_basic):
+        reader = readers.IterableReader(["1\t100\tnull\tNone\t0.05", "2\t200\tA\tC\t5e-8"],
+                                        parser=standard_gwas_parser_basic)
+        reader.add_filter('ref')
+        assert len(reader._filters) == 1
+
+        # File will act on it
+        assert len(list(reader)) == 1, "output was restricted to the expected rows"
 
 
 class TestTransforms:

@@ -77,9 +77,6 @@ def main(source: ty.Union[str, ty.Iterable],
     reader = sniffers.guess_gwas_generic(source, skip_rows=skip_rows, parser=parser, parser_options=parser_options,
                                          skip_errors=skip_errors, max_errors=max_errors)
 
-    # By design, this filters all missing pvalues out of the result file
-    reader.add_filter('neg_log_pvalue', lambda v, _: v is not None)
-
     try:
         dest_fn = reader.write(out_fn, make_tabix=make_tabix) or 'console'
     except exceptions.TooManyBadLinesException:
