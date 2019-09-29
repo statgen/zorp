@@ -348,7 +348,8 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
             index = header_names.index(header)
             column_config[out_field] = index + 1
         except ValueError:
-            raise exceptions.SnifferException('File must specify all columns required by the standard format')
+            raise exceptions.SnifferException(
+                f'File must specify all columns required by the standard format. Missing: {header}')
 
     for header, out_field in optional_cols:
         try:

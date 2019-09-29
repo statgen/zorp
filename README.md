@@ -27,13 +27,13 @@ sample_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, is_neg
                                               delimiter='\t')
 reader = readers.TabixReader('input.bgz', parser=sample_parser, skip_rows=1, skip_errors=True)
 
-# We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
-reader.add_filter('chrom', '19')  # Exact value match
-reader.add_filter(lambda row: row.neg_log_pvalue > 7.301)  # Provide a function that can operate on all parsed fields
-reader.add_filter('neg_log_pvalue')  # Exclude values with missing data for the named field  
-
 # After parsing the data, values of pre-defined fields can be cleaned up, or used to perform lookups
 reader.add_transform('rsid', lambda variant: some_rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+
+# We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
+reader.add_filter('chrom', '19')  # This row must have the specified value for the "chrom" field
+reader.add_filter(lambda row: row.neg_log_pvalue > 7.301)  # Provide a function that can operate on all parsed fields
+reader.add_filter('neg_log_pvalue')  # Exclude values with missing data for the named field  
 
 # Iteration returns containers of cleaned, parsed data (with fields accessible by name).
 for row in reader:

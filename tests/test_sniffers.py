@@ -467,7 +467,7 @@ class TestStandardSniffer:
             ['#chrom', 'pos', 'ref', 'alt', 'beta'],
             ['1', '762320', 'C', 'T', '0.5']
         ])
-        with pytest.raises(exceptions.SnifferException, match='must specify all columns'):
+        with pytest.raises(exceptions.SnifferException, match='Missing: neg_log_pvalue'):
             sniffers.guess_gwas_standard(data)
 
     def test_some_options_are_mutually_exclusive(self):
