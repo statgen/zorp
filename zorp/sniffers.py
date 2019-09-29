@@ -267,7 +267,7 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
     to_skip = n_headers if skip_rows is None else skip_rows
     if parser is None:
         # FIXME: Handle case of files with no header rows
-        header_names = header_text.lower().lstrip('#').split(delimiter)
+        header_names = header_text.lower().strip().lstrip('#').split(delimiter)
 
         # The first effort at field detection just extracts fields, with no value cleanup
         parser = parsers.TupleLineParser(delimiter=delimiter)
@@ -318,7 +318,7 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
     reader_class = get_reader(filename)
     n_headers, header_text = get_headers(reader_class(filename, parser=None), delimiter=delimiter)
 
-    header_names = header_text.lower().lstrip('#').split(delimiter)
+    header_names = header_text.lower().strip().lstrip('#').split(delimiter)
 
     parser_options = parser_options or {}
     parser_options = {k: v for k, v in parser_options.items() if v is not None}  # all kwargs must have values
