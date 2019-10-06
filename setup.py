@@ -144,7 +144,8 @@ setup(
     # projects.
     extras_require={  # Optional
         'test': ['coverage', 'pytest', 'pytest-flake8', 'pytest-mypy'],
-        'perf': ['fastnumbers==2.2.1']
+        'perf': ['fastnumbers==2.2.1'],
+        'lookups': ['lmdb', 'msgpack']
     },
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
@@ -157,6 +158,7 @@ setup(
     entry_points={
         'console_scripts': [
             'zorp-convert=bin.zorp_convert:run_cli',
+            'zorp-download=bin.zorp_download:run_cli'
         ],
     },
 

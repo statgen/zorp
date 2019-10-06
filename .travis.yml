@@ -6,7 +6,7 @@ python:
 sudo: false
 
 install:
-    - travis_retry pip install -e '.[test,perf]'
+    - travis_retry pip install -e '.[test,perf,lookups]'
 
 script:
   - mypy .
