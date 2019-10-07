@@ -24,13 +24,20 @@ class FindRsid:
             specific file format.
         """
         db = self.env.open_db(bytes(chrom, 'utf8'))  # always retrieves handle to same db
-        pos = pos.to_bytes(4, 'little')  # FIXME: pos not found in test db
+        #pos = pos.to_bytes(4, 'big')  # FIXME: pos not found in test db so need to delve a bit
+        pos = bytes(str(pos), 'utf8')
         with self.env.begin(buffers=True) as txn:
             res = txn.get(pos, db=db)
             if res:
                 res = msgpack.unpackb(res,encoding="utf8",use_list=False)
                 res = res.get(f'{ref}/{alt}')
         return f'rs{res}' if res else None
+
+    def known_chroms(self):
+        with self.env.begin() as txn:
+            # In this particular data structure, all child databases are listed as keys in the default DB
+            cursor = txn.cursor()
+            return [k for k, v in cursor]
 
     def __del__(self):
         # Ensure the database environment is closed when the reader is no longer needed

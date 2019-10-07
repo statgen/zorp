@@ -70,15 +70,17 @@ def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
                 cur_data[f'{ref}/{alt}'] = rsid
             else:
                 # Push any existing lookup to the database and reset cur_data
-                key = int(pos).to_bytes(4, 'little')  # 4 bytes = ~4 billion positions (unsigned int)
+                key = bytes(pos, 'utf8')
+                # key = int(pos).to_bytes(4, 'big')  # 4 bytes = ~4B positions (uint), big end preserves sort order
                 value = msgpack.packb(cur_data, use_bin_type=True)  # Value is not a primitive; serialize it efficiently
-                txn.put(key, value, db=db_handles[chrom], append=True)
+                txn.put(key, value, db=db_handles[chrom])
                 cur_data = {}
 
             cur_pos = pos
 
         # Make sure that the last line of the file gets added to the database (TODO: dry with logic above)
-        key = int(pos).to_bytes(4, 'little')  # 4 bytes = ~4 billion positions (unsigned int)
+        # key = int(pos).to_bytes(4, 'big')  # 4 bytes = ~4 billion positions (unsigned int)
+        key = bytes(pos, 'utf8')
         value = msgpack.packb(cur_data, use_bin_type=True)  # Value is not a primitive; serialize it efficiently
         txn.put(key, value, db=db_handles[chrom], append=True)
 
