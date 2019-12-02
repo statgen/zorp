@@ -214,6 +214,7 @@ def get_reader(filename: ty.Union[ty.Iterable, str]) -> ty.Type[readers.BaseRead
         return readers.IterableReader
 
     with open(filename, 'rb') as test_f:
+        # A known magic number for GZIP files: simple filetype detection
         is_gz = binascii.hexlify(test_f.read(2)) == b'1f8b'
 
     if is_gz:
@@ -295,13 +296,14 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
 
         parser = parsers.GenericGwasLineParser(**options)
 
-    return reader_class(filename, skip_rows=to_skip, parser=parser)
+    return reader_class(filename, skip_rows=to_skip, parser=parser, **kwargs)
 
 
 def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
                         parser: parsers.AbstractLineParser = None,
                         parser_options: dict = None,
-                        delimiter: str = '\t') -> readers.BaseReader:
+                        delimiter: str = '\t',
+                        **kwargs) -> readers.BaseReader:
     """
     Return a fully configured reader/parser for the harmonized GWAS format used by zorp
 
@@ -360,4 +362,4 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
 
     options = {**column_config, **default_parser_options, **parser_options}
     parser = parsers.GenericGwasLineParser(**options)  # type: ignore
-    return reader_class(filename, skip_rows=n_headers, parser=parser)
+    return reader_class(filename, skip_rows=n_headers, parser=parser, **kwargs)
