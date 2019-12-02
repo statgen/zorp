@@ -11,6 +11,7 @@ Known chromosomes (according to dbsnp): 25 in all. It seems we need to know this
 import argparse
 import gzip
 import os
+import struct
 import sys
 
 import lmdb
@@ -35,7 +36,7 @@ def make_databases(env):
         '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
         '21', '22', 'X', 'Y', 'MT'
     ]
-    return {k: env.open_db(bytes(k, "utf8")) for k in known}
+    return {k: env.open_db(bytes(k, "utf8"), integerkey=True) for k in known}
 
 
 def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
@@ -70,8 +71,7 @@ def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
                 cur_data[f'{ref}/{alt}'] = rsid
             else:
                 # Push any existing lookup to the database and reset cur_data
-                key = bytes(pos, 'utf8')
-                # key = int(pos).to_bytes(4, 'big')  # 4 bytes = ~4B positions (uint), big end preserves sort order
+                key = struct.pack('I', int(pos))
                 value = msgpack.packb(cur_data, use_bin_type=True)  # Value is not a primitive; serialize it efficiently
                 txn.put(key, value, db=db_handles[chrom])
                 cur_data = {}
@@ -80,7 +80,6 @@ def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
 
         # Make sure that the last line of the file gets added to the database (TODO: dry with logic above)
         # key = int(pos).to_bytes(4, 'big')  # 4 bytes = ~4 billion positions (unsigned int)
-        key = bytes(pos, 'utf8')
         value = msgpack.packb(cur_data, use_bin_type=True)  # Value is not a primitive; serialize it efficiently
         txn.put(key, value, db=db_handles[chrom], append=True)
 
