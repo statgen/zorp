@@ -17,19 +17,23 @@ class FindRsid:
         path = path or '/Users/abought/code/personal/zorp/tests/data/rsid-build37-segment.lmdb'
 
         self.env = lmdb.open(path, subdir=False, max_dbs=num_chroms, readonly=True)
+        self.db_handles = {}
 
     def __call__(self, chrom: str, pos: int, ref: str, alt: str):
         """
         Look up the specified SNP in the database, and handle any translation of how results are stored in this
             specific file format.
         """
-        db = self.env.open_db(bytes(chrom, 'utf8'), integerkey=True)  # always retrieves handle to same db
+        if chrom not in self.db_handles:
+            self.db_handles[chrom] = self.env.open_db(bytes(chrom, 'utf8'), integerkey=True)
+
+        db = self.db_handles[chrom]
 
         pos = struct.pack('I', int(pos))
         with self.env.begin(buffers=True) as txn:
             res = txn.get(pos, db=db)
             if res:
-                res = msgpack.unpackb(res,encoding="utf8",use_list=False)
+                res = msgpack.unpackb(res, encoding="utf8",use_list=False)
                 res = res.get(f'{ref}/{alt}')
         return f'rs{res}' if res else None
 
