@@ -218,6 +218,16 @@ class TestFiltering:
         # File will act on it
         assert len(list(reader)) == 1, "output was restricted to the expected rows"
 
+    def test_add_filter_validates_one_argument_syntax(self):
+        reader = readers.IterableReader(["X\t1\tA\tG"])
+        with pytest.raises(exceptions.ConfigurationException, match='function or a field name'):
+            reader.add_filter(42)
+
+    def test_add_filter_fails_with_too_many_arguments(self):
+        reader = readers.IterableReader(["X\t1\tA\tG"])
+        with pytest.raises(exceptions.ConfigurationException, match='Invalid filter format'):
+            reader.add_filter('afield', 42, 'superfluous argument')
+
 
 class TestTransforms:
     def test_transform_modifies_parsed_field_value(self, simple_file_reader):
