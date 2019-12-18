@@ -258,7 +258,18 @@ class GenericGwasLineParser(TupleLineParser):
 
             # Perform type coercion
             log_pval = utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
-            pos = int(pos)
+
+            try:
+                pos = int(pos)
+            except ValueError:
+                # Some programs seem to write long positions using scientific notation, which int cannot handle
+                try:
+                    pos = int(float(pos))
+                except ValueError:
+                    # If we still can't parse, it's probably bad data
+                    raise exceptions.LineParseException(
+                        f'Positions should be specified as integers. Could not parse value: {pos}')
+
             if beta is not None:
                 beta = None if beta in MISSING_VALUES else float(beta)
             if stderr_beta is not None:
