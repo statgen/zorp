@@ -103,7 +103,7 @@ class BaseReader(abc.ABC):
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
         Filters are applied after all parsing and transforms are complete.
 
-        There are two ways to specify a filter:
+        There are three ways to specify a filter:
         - `add_filter('field_name') requires that the value not be missing. Equivalent to "is not None".
         - `add_filter('field_name', value)` checks that the field has this exact value.
         - `add_filter(lambda parsed: bool)` runs a user-provided function on whatever is in this row.
