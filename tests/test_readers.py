@@ -229,20 +229,49 @@ class TestFiltering:
             reader.add_filter('afield', 42, 'superfluous argument')
 
 
-class TestTransforms:
-    def test_transform_modifies_parsed_field_value(self, simple_file_reader):
-        reader = simple_file_reader.add_transform('chrom', lambda parsed: 'Y')
-        assert all(row.chrom == 'Y' for row in reader), 'All chromosomes have been replaced with a new value'
+class TestLookups:
+    def test_lookup_modifies_parsed_field_value(self, simple_file_reader):
+        simple_file_reader.add_lookup('chrom', lambda parsed: 'Y')
+        assert all(row.chrom == 'Y' for row in simple_file_reader), 'All chroms have been replaced with a new value'
 
     def test_named_field_parsers_can_check_that_dest_field_exists(self, simple_file_reader):
         with pytest.raises(exceptions.ConfigurationException, match='does not have a field'):
-            simple_file_reader.add_transform('dummy_field', lambda parsed: 'Y')
+            simple_file_reader.add_lookup('dummy_field', lambda parsed: 'Y')
 
-    def test_transform_must_be_function(self, simple_file_reader):
+    def test_lookup_must_be_function(self, simple_file_reader):
         with pytest.raises(exceptions.ConfigurationException, match='must specify a function'):
-            simple_file_reader.add_transform('chrom', 12)
+            simple_file_reader.add_lookup('chrom', 12)
 
     def test_named_fields_require_named_field_parser(self):
         reader = readers.IterableReader([[1, 2, 3]], parser=None)
         with pytest.raises(exceptions.ConfigurationException, match='name-based'):
-            reader.add_transform('chrom', lambda parsed: 'Y')
+            reader.add_lookup('chrom', lambda parsed: 'Y')
+
+
+class TestTransforms:
+    def test_lookup_must_be_function(self, simple_file_reader):
+        with pytest.raises(exceptions.ConfigurationException, match='must specify a function'):
+            simple_file_reader.add_transform('this_is_a_string')
+
+    def test_transforms_can_modify_values(self, simple_file_reader):
+        def _sample_transform(variant):
+            variant.chrom = 'Y'
+            variant.pos = 12
+            return variant
+
+        simple_file_reader.add_transform(_sample_transform)
+        assert all(row.chrom == 'Y' for row in simple_file_reader), 'All chroms have been replaced with a new value'
+        assert all(row.pos == 12 for row in simple_file_reader), 'All positions have been replaced with a new value'
+
+    def test_transforms_can_replaced_parsed_object(self, simple_file_reader):
+        # I mean, this is an extreme example of what's possible, but you'll probably regret doing this in practice
+        # With great power comes great responsi--- oh, this is bioinformatics? Never mind then.
+        simple_file_reader.add_transform(lambda variant: 'now we return strings because this is sparta')
+        assert all(isinstance(row, str) for row in simple_file_reader), 'All row variant objects are now strings'
+
+    def test_transforms_can_work_with_any_parser(self):
+        # Transforms bypass the mechanisms for data validation, so they don't perform sanity checks on field names.
+        #  A side effect is that they can be used even if the parser doesn't support field names
+        reader = readers.IterableReader([[1, 2, 3]], parser=None)
+        reader.add_transform(lambda row: row)
+        assert all(isinstance(row, list) for row in reader), 'Transforms work even without named fields'

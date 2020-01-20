@@ -27,8 +27,13 @@ sample_parser = parsers.GenericGwasLineParser(marker_col=1, pvalue_col=2, is_neg
                                               delimiter='\t')
 reader = readers.TabixReader('input.bgz', parser=sample_parser, skip_rows=1, skip_errors=True)
 
-# After parsing the data, values of pre-defined fields can be cleaned up, or used to perform lookups
-reader.add_transform('rsid', lambda variant: some_rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+# After parsing the data, values of pre-defined fields can be used to perform lookups for the value of one field
+#  Lookups can be reusable functions with no dependence on zorp
+reader.add_lookup('rsid', lambda variant: some_rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+
+# Sometimes a more powerful syntax is needed- the ability to look up several fields at once, or clean up parsed data 
+#   in some way unique to this dataset 
+reader.add_transform(lambda variant: mutate_entire_variant(variant))
 
 # We can filter data to the variants of interest. If you use a domain specific parser, columns can be referenced by name
 reader.add_filter('chrom', '19')  # This row must have the specified value for the "chrom" field
