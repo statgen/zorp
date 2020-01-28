@@ -24,7 +24,7 @@ class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
     def __init__(self,
                  source: ty.Any,
-                 parser: ty.Union[ty.Callable, None] = parsers.TupleLineParser(),
+                 parser: ty.Union[ty.Callable[[str], object], None] = parsers.TupleLineParser(),
                  skip_rows: int = 0,
                  skip_errors: bool = False,
                  max_errors: int = 100,
@@ -212,9 +212,9 @@ class BaseReader(abc.ABC):
             raise exceptions.ConfigurationException('Writer cannot overwrite input file')
 
         if columns is None:
-            if hasattr(self._parser, 'fields'):
+            try:
                 columns = self._parser.fields  # type: ignore
-            else:
+            except AttributeError:
                 raise exceptions.ConfigurationException('Must provide column names to write')
 
         # Special case rule: The writer renders missing data (the Python value `None`) as `.`

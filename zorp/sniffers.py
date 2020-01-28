@@ -240,7 +240,7 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
 
 def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
                        skip_rows=None,
-                       parser: parsers.AbstractLineParser = None,
+                       parser: ty.Callable[[str], object] = None,
                        parser_options: dict = None,
                        delimiter: str = '\t',
                        **kwargs) -> readers.BaseReader:
@@ -300,7 +300,7 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
 
 
 def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
-                        parser: parsers.AbstractLineParser = None,
+                        parser: ty.Callable[[str], object] = None,
                         parser_options: dict = None,
                         delimiter: str = '\t',
                         **kwargs) -> readers.BaseReader:
