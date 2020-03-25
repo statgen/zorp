@@ -24,7 +24,7 @@ class BaseReader(abc.ABC):
     """Implements common base functionality for reading and filtering GWAS results"""
     def __init__(self,
                  source: ty.Any,
-                 parser: ty.Union[ty.Callable, None] = parsers.TupleLineParser(),
+                 parser: ty.Union[ty.Callable[[str], object], None] = parsers.TupleLineParser(),
                  skip_rows: int = 0,
                  skip_errors: bool = False,
                  max_errors: int = 100,
@@ -39,11 +39,12 @@ class BaseReader(abc.ABC):
         """
         self._source = source
 
-        # Filters and transforms that should operate on each row
+        # Filters, lookups, and mutations that should operate on each row
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
         self._parser = parser
-        self._filters: list = []
-        self._transforms: list = []
+        self._filters: list = []  # Should we return this row from iteration?
+        self._lookups: list = []  # Find the value of a specified field given (parsed) variant info
+        self._transforms: list = []  # Modify the (parsed) variant info using a custom function.
 
         # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
@@ -68,6 +69,7 @@ class BaseReader(abc.ABC):
             available for inspection later)
         """
         use_filters = len(self._filters)
+        use_lookups = len(self._lookups)
         use_transforms = len(self._transforms)
         for i, row in enumerate(iterator):
             if not row:
@@ -88,9 +90,13 @@ class BaseReader(abc.ABC):
                         raise exceptions.TooManyBadLinesException(error_list=self.errors)
                     continue
 
-                if use_transforms:
-                    for field_name, func in self._transforms:
+                if use_lookups:
+                    for field_name, func in self._lookups:
                         setattr(parsed, field_name, func(parsed))
+
+                if use_transforms:
+                    for func in self._transforms:
+                        parsed = func(parsed)
 
                 if use_filters and not all(test_func(parsed) for test_func in self._filters):
                     continue
@@ -103,7 +109,7 @@ class BaseReader(abc.ABC):
         Limit the output to rows that match the specified criterion. Can apply multiple filters.
         Filters are applied after all parsing and transforms are complete.
 
-        There are two ways to specify a filter:
+        There are three ways to specify a filter:
         - `add_filter('field_name') requires that the value not be missing. Equivalent to "is not None".
         - `add_filter('field_name', value)` checks that the field has this exact value.
         - `add_filter(lambda parsed: bool)` runs a user-provided function on whatever is in this row.
@@ -126,35 +132,55 @@ class BaseReader(abc.ABC):
             raise exceptions.ConfigurationException('Invalid filter format requested')
         return self
 
-    def add_transform(self, field_name: str, transform_func: ty.Callable[[object], object]) -> 'BaseReader':
+    def add_lookup(self, field_name: str, lookup_func: ty.Callable[[object], object]) -> 'BaseReader':
         """
-        Transform the value of an individual field within a row. Each transform is a function that receives
+        Look up / modify the value of an individual field within a row. Each lookup is a function that receives
           the parsed row and returns a single value. This can be used to clean up how values are presented
           ("chr1" vs "chr1"), and also for things that a generic parser may be ill-suited to infer from the text of the
           file. (eg, rsid lookups require knowing reference build, which is usually specified as metadata).
 
-        Example: `add_transform('rsid', lookup_func)` sets `parsed.rsid` to the result of the lookup.
+        Lookups are good at finding the value of a single field. Lookups can be written that have no dependence on
+          zorp, eg "genelocator".
+
+        Example: `add_lookup('rsid', lookup_func)` sets `parsed.rsid` to the result of the lookup.
 
         At present, zorp is written with the restrictive philosophy that each field has a well-understood universal
-          meaning, consistent across all files that use that parser. Transforms are allowed to modify existing known
+          meaning, consistent across all files that use that parser. Lookups are allowed to modify existing known
           fields, but not add new fields. (a side effect: the parser must support name-based field access)
         """
         if not self._parser:
             raise exceptions.ConfigurationException(
-                "Transform features require specifying a parser that supports name-based field access.")
+                "Lookup features require specifying a parser that supports name-based field access.")
 
         # Sanity check if possible, otherwise, just hope the parser returns something with named fields!
         if hasattr(self._parser, 'fields') and field_name not in self._parser.fields:  # type: ignore
             raise exceptions.ConfigurationException("The parser does not have a field by this name")
 
+        if not isinstance(lookup_func, collections.abc.Callable):  # type: ignore
+            raise exceptions.ConfigurationException(
+                "Lookup must specify a function that receives variant data and returns a value")
+
+        self._lookups.append([
+            field_name,
+            lookup_func
+        ])
+        return self
+
+    def add_transform(self, transform_func: ty.Callable[[object], object]) -> 'BaseReader':
+        """
+        Transforms provide a way to change ALL of the data for a variant. They can mutate several fields at once,
+          perform multiple lookups, or even return a different object than what the parser normally returns. (this last
+          option is not recommended for both performance and debugging reasons)
+
+        We generally recommend lookups for most use cases, because they don't need to depend on your parser,
+          and are easier to maintain. (because they are pure functions with no side effects). Transforms represent
+          a way to make very powerful arbitrary changes to all your data at once, but they also bypass type checks and
+          other features designed to prevent bugs.
+        """
         if not isinstance(transform_func, collections.abc.Callable):  # type: ignore
             raise exceptions.ConfigurationException(
-                "Transformation must specify a function that receives variant data and returns a value")
-
-        self._transforms.append([
-            field_name,
-            transform_func
-        ])
+                "Transforms must specify a function that operates on variant data")
+        self._transforms.append(transform_func)
         return self
 
     def write(self,
@@ -186,9 +212,9 @@ class BaseReader(abc.ABC):
             raise exceptions.ConfigurationException('Writer cannot overwrite input file')
 
         if columns is None:
-            if hasattr(self._parser, 'fields'):
+            try:
                 columns = self._parser.fields  # type: ignore
-            else:
+            except AttributeError:
                 raise exceptions.ConfigurationException('Must provide column names to write')
 
         # Special case rule: The writer renders missing data (the Python value `None`) as `.`

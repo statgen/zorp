@@ -174,8 +174,13 @@ class TestStandardGwasParser:
 
     def test_enforces_pos_as_int(self, standard_gwas_parser_basic):
         line = '1\tNOPE\tA\tC\t0.05'
-        with pytest.raises(exceptions.LineParseException, match="invalid literal"):
+        with pytest.raises(exceptions.LineParseException, match="Positions should be specified as integers"):
             standard_gwas_parser_basic(line)
+
+    def test_handles_pos_as_scinotation(self, standard_gwas_parser_basic):
+        line = '1\t1e+08\tA\tC\t0.05'
+        output = standard_gwas_parser_basic(line)
+        assert output.pos == 100000000, 'Position is integer'
 
     def test_handles_missing_ref(self, standard_gwas_parser_basic):
         line = '1\t2\tNA\tnull\t0.05'
