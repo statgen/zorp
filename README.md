@@ -84,7 +84,7 @@ $ tabix <filename.sorted.gz> -p vcf
 
 To install dependencies and run in development mode:
 
-`pip install -e '.[test,perf]'`
+`pip install -e '.[test,perf,lookups]'`
 
 To run unit tests, use
 
