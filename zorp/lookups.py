@@ -33,9 +33,7 @@ class FindRsid:
         with self.env.begin(buffers=True) as txn:
             res = txn.get(pos, db=db)
             if res:
-                res = msgpack.unpackb(res, encoding="utf8",use_list=False)
-                # FIXME: Daniel suggests that multi-allelic snps (as opposed to indels) have a line format that won't work here:
-                #       "As I remember for multi-allelic snps dbSNP entry will have e.g. “A/G/C” listed as alt alleles and as long as your alternate allele match any of them, then you can claim the match"
+                res = msgpack.unpackb(res, encoding="utf8", use_list=False)
                 res = res.get(f'{ref}/{alt}')
         return f'rs{res}' if res else None
 
