@@ -26,7 +26,7 @@ class LineParseException(BaseZorpException):
     """An error occurred while parsing a single line. Capture the data that failed to parse for context."""
     DEFAULT_MESSAGE = 'Could not parse specified line'
 
-    def __init__(self, *args, line=None, ):
+    def __init__(self, *args, line=None):
         super(LineParseException, self).__init__(*args)
         self.line = line
 

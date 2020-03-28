@@ -1,10 +1,11 @@
+#!/usr/bin/env python
 """
 Look up the RSID associated with a variant, based on a tabixed copy of dbSNP
 """
 import gzip
 import typing as ty
 
-from zorp import parsers, readers
+from zorp import parsers, sniffers
 
 from loaders.make_rsid_lookup import line_parser, make_group_iterator, make_file_iterator
 
@@ -39,30 +40,25 @@ class LookupRsidsTabix:
                 # If we hit the end of the dbSNP file, exit the loop and never let the iterator advance again
                 break
 
-    def __call__(self, chrom, pos, ref, alt) -> ty.Union[int, None]:
+            chrom, pos, _ = self._current_row
+
+    def __call__(self, variant: parsers.BasicVariant) -> ty.Union[int, None]:
         # Look up the rsid associated with a current SNP.
-        self._advance_current_reader(chrom, pos)
+        self._advance_current_reader(variant.chrom, variant.pos)
 
         snp_chrom, snp_pos, ref_alt_options = self._current_row
-        if snp_chrom != chrom or snp_pos != pos:
+        if snp_chrom != variant.chrom or snp_pos != variant.pos:
             # Ensure that the dbSNP reader is at the correct position!
             return None
-        return ref_alt_options.get('{}/{}'.format(ref, alt), None)
+        return ref_alt_options.get('{}/{}'.format(variant.ref, variant.alt), None)
 
     def __del__(self):
-        self._vcf.close()
+        if self._vcf:
+            self._vcf.close()
 
 
 if __name__ == '__main__':
-    standard_gwas_parser = parsers.GenericGwasLineParser(
-        chrom_col=1, pos_col=2, ref_col=3, alt_col=4,
-        pvalue_col=5, is_neg_log_pvalue=True,
-        beta_col=6, stderr_beta_col=7,
-        allele_freq_col=8,
-        is_alt_effect=True,
-        delimiter='\t'
-    )
-    gwas_reader = readers.TabixReader('data/summary_stats.gz', parser=standard_gwas_parser)
+    gwas_reader = sniffers.guess_gwas_standard('/home/abought/code/zorp/loaders/benchmarks/data/summary_stats.gz')
     rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
 
     # Perform lookups and track results

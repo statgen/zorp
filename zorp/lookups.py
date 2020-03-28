@@ -6,6 +6,8 @@ import struct
 import lmdb
 import msgpack
 
+from . import exceptions
+
 
 class FindRsid:
     """Convert SNP coordinates to RSID information"""
@@ -13,8 +15,8 @@ class FindRsid:
         if path == 'GRCh37' or path == 'GRCh38':
             raise NotImplementedError('Pre-defined builds and data cache directory not yet implemented')
 
-        # TODO: Hardcoded, machine-specific default dir. Replace!
-        path = path or '/Users/abought/code/personal/zorp/tests/data/rsid-build37-segment.lmdb'
+        if not path:
+            raise exceptions.ConfigurationException('Must provide a path to the lookup file')
 
         self.env = lmdb.open(path, subdir=False, max_dbs=num_chroms, readonly=True)
         self.db_handles = {}  # type: dict
