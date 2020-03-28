@@ -2,6 +2,7 @@
 Convert SNP information to gene, rsid, or other useful annotations
 """
 import struct
+import typing as ty
 
 import lmdb
 import msgpack
@@ -21,7 +22,7 @@ class FindRsid:
         self.env = lmdb.open(path, subdir=False, max_dbs=num_chroms, readonly=True)
         self.db_handles = {}  # type: dict
 
-    def __call__(self, chrom: str, pos: int, ref: str, alt: str):
+    def __call__(self, chrom: str, pos: int, ref: str, alt: str) -> ty.Union[int, None]:
         """
         Look up the specified SNP in the database, and handle any translation of how results are stored in this
             specific file format.
@@ -37,7 +38,7 @@ class FindRsid:
             if res:
                 res = msgpack.unpackb(res, use_list=False)
                 res = res.get('{}/{}'.format(ref, alt))
-        return 'rs{}'.format(res) if res else None
+        return res
 
     def known_chroms(self):
         with self.env.begin() as txn:
