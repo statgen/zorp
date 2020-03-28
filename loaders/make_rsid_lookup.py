@@ -100,7 +100,7 @@ def make_group_iterator(file_iterator) -> ty.Iterator[ty.Tuple[str, int, dict]]:
         for record in position_records:
             # The same line can indicate one or more ref/alts
             chrom, pos, ref, alt, rsid = record
-            ref_alts = [f'{ref_option}/{alt_option}'
+            ref_alts = ['{}/{}'.format(ref_option, alt_option)
                         for alt_option in alt.split(',')
                         for ref_option in ref.split('.')]
 

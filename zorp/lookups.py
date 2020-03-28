@@ -17,7 +17,7 @@ class FindRsid:
         path = path or '/Users/abought/code/personal/zorp/tests/data/rsid-build37-segment.lmdb'
 
         self.env = lmdb.open(path, subdir=False, max_dbs=num_chroms, readonly=True)
-        self.db_handles = {}
+        self.db_handles = {}  # type: dict
 
     def __call__(self, chrom: str, pos: int, ref: str, alt: str):
         """
@@ -29,13 +29,13 @@ class FindRsid:
 
         db = self.db_handles[chrom]
 
-        pos = struct.pack('I', int(pos))
+        key = struct.pack('I', int(pos))
         with self.env.begin(buffers=True) as txn:
-            res = txn.get(pos, db=db)
+            res = txn.get(key, db=db)
             if res:
                 res = msgpack.unpackb(res, encoding="utf8", use_list=False)
-                res = res.get(f'{ref}/{alt}')
-        return f'rs{res}' if res else None
+                res = res.get('{}/{}'.format(ref, alt))
+        return 'rs{}'.format(res) if res else None
 
     def known_chroms(self):
         with self.env.begin() as txn:

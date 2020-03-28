@@ -23,17 +23,17 @@ class BasicVariant:
     _fields = ('chrom', 'pos', 'rsid', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
 
     def __init__(self, chrom, pos, rsid, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
-        self.chrom: str = chrom
-        self.pos: int = pos
-        self.rsid: str = rsid
-        self.ref: str = ref
-        self.alt: str = alt
-        self.neg_log_pvalue: float = neg_log_pvalue
+        self.chrom = chrom  # type: str
+        self.pos = pos  # type: int
+        self.rsid = rsid  # type: str
+        self.ref = ref  # type: str
+        self.alt = alt  # type: str
+        self.neg_log_pvalue = neg_log_pvalue  # type: float
 
         # # Optional fields for future expansion
         # af: float
-        self.beta: float = beta
-        self.stderr_beta: float = stderr_beta
+        self.beta = beta  # type: float
+        self.stderr_beta = stderr_beta  # type: float
 
         self.alt_allele_freq = alt_allele_freq
 
@@ -60,8 +60,9 @@ class BasicVariant:
     @property
     def marker(self) -> str:
         """Specify the marker in a string format compatible with UM LD server and other variant-specific requests"""
-        ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
-        return f'{self.chrom}:{self.pos}{ref_alt}'
+        ref_alt = '_{}/{}'.format(self.ref, self.alt) \
+            if (self.ref and self.alt) else ''
+        return '{}:{}{}'.format(self.chrom, self.pos, ref_alt)
 
     def to_dict(self):
         # Some tools expect the data in a mutable form (eg dicts)
@@ -208,7 +209,7 @@ def GenericGwasLineParser(
                 except ValueError:
                     # If we still can't parse, it's probably bad data
                     raise exceptions.LineParseException(
-                        f'Positions should be specified as integers. Could not parse value: {pos}')
+                        'Positions should be specified as integers. Could not parse value: {}'.format(pos))
 
             if beta is not None:
                 beta = None if beta in MISSING_VALUES else float(beta)

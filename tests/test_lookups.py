@@ -15,19 +15,19 @@ def rsid_testdata():
 
 class TestFindRsid:
     def test_finds_snp_in_lookup(self, rsid_testdata):
-        res = rsid_testdata('1', 10_063, 'A', 'C')
+        res = rsid_testdata('1', 10063, 'A', 'C')
         assert res == 'rs1010989343'
 
     def test_identifies_two_alts_with_same_rsid(self, rsid_testdata):
-        res = rsid_testdata('1', 10_164, 'A', 'G')
+        res = rsid_testdata('1', 10164, 'A', 'G')
         assert res == 'rs1413947121'
 
-        res = rsid_testdata('1', 10_164, 'A', 'T')
+        res = rsid_testdata('1', 10164, 'A', 'T')
         assert res == 'rs1413947121'
 
     def test_distinguishes_two_rsids_for_same_position(self, rsid_testdata):
-        res = rsid_testdata('1', 10_051, 'A', 'G')
+        res = rsid_testdata('1', 10051, 'A', 'G')
         assert res == 'rs1052373574'
 
-        res = rsid_testdata('1', 10_051, 'A', 'AC')
+        res = rsid_testdata('1', 10051, 'A', 'AC')
         assert res == 'rs1326880612'
