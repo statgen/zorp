@@ -33,7 +33,7 @@ class FindRsid:
         with self.env.begin(buffers=True) as txn:
             res = txn.get(key, db=db)
             if res:
-                res = msgpack.unpackb(res, encoding="utf8", use_list=False)
+                res = msgpack.unpackb(res, use_list=False)
                 res = res.get('{}/{}'.format(ref, alt))
         return 'rs{}'.format(res) if res else None
 
