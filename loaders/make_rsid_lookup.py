@@ -27,6 +27,8 @@ from fastnumbers import int
 import lmdb
 import msgpack
 
+# TODO: Provide a "test data" implementation, in which only certain regions are listed
+# Brca1, brca2, herc2, tcf7l2, APOE , APOB, PCSK9, CYP2E1
 
 RSID_CAPTURE = re.compile(r'RS=(\d+);?')
 
@@ -76,7 +78,10 @@ def line_parser(row) -> ty.Tuple[str, int, str, str, int]:
 
 
 def make_file_iterator(handle) -> ty.Iterator[ty.Tuple[str, int, str, str, int]]:
-    """Parse the set of lines for an open file handle (text, gz, etc)"""
+    """
+    Parse the set of lines for an open file handle (text, gz, etc), and only give back the ones relevant to our
+        chrom/pos/ref/alt use case
+    """
     for row in handle:
         if row.startswith('#'):
             # Skip header rows
