@@ -106,15 +106,15 @@ class LookupRsidsTabix:
 
             chrom, pos, _ = self._current_row
 
-    def __call__(self, variant: parsers.BasicVariant) -> ty.Union[int, None]:
+    def __call__(self, chrom: str, pos: int, ref: str, alt: str) -> ty.Union[int, None]:
         # Look up the rsid associated with a current SNP.
-        self._advance_current_reader(variant.chrom, variant.pos)
+        self._advance_current_reader(chrom, pos)
 
         snp_chrom, snp_pos, ref_alt_options = self._current_row
-        if snp_chrom != variant.chrom or snp_pos != variant.pos:
+        if snp_chrom != chrom or snp_pos != pos:
             # Ensure that the dbSNP reader is at the correct position!
             return None
-        return ref_alt_options.get('{}/{}'.format(variant.ref, variant.alt), None)
+        return ref_alt_options.get('{}/{}'.format(ref, alt), None)
 
     def __del__(self):
         self._tabix.close()
@@ -124,19 +124,23 @@ if __name__ == '__main__':
     ####
     # Local development
     # gwas_reader = sniffers.guess_gwas_standard(
-    #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/summary_stats_head40.gz'
+    #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/summary_stats_1k_lines.tab'
     # )
+    # TODO: Make an LMDB version based on just part of the tabix file
+    # Eg: sumstats = text or gzip file
+    # rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
+
     # rsid_finder = LookupRsidsTabix(
-    #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/fragment_GCF_000001405.25.gz'
+    #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.gz'
     # )
 
     ###
     # Options useful on the cluster (full dataset)
     gwas_reader = sniffers.guess_gwas_standard('/home/abought/code/zorp/loaders/benchmarks/data/summary_stats.gz')
-    # rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
-    rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
+    rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
+    # rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
 
     # Perform lookups and track results
     gwas_reader.add_lookup('rsid', lambda variant: variant.rsid or rsid_finder(variant.chrom, variant.pos, variant.ref,
                                                                                variant.alt))
-    gwas_reader.write('deleteme-lmdb-version.gz')
+    gwas_reader.write('deleteme.gz')
