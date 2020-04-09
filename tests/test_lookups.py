@@ -18,6 +18,10 @@ class TestFindRsid:
         res = rsid_testdata('1', 10063, 'A', 'C')
         assert res == 1010989343
 
+    def test_finds_no_snp_if_wrong_alt(self, rsid_testdata):
+        res = rsid_testdata('1', 10063, 'A', 'A')
+        assert res is None
+
     def test_identifies_two_alts_with_same_rsid(self, rsid_testdata):
         res = rsid_testdata('1', 10164, 'A', 'G')
         assert res == 1413947121
