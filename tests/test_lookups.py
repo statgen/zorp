@@ -9,7 +9,7 @@ from zorp import lookups
 
 @pytest.fixture
 def rsid_testdata():
-    data_fn = os.path.join(os.path.dirname(__file__), "data/rsid_lookup/dbSNP_b153.lmdb")
+    data_fn = os.path.join(os.path.dirname(__file__), "data/rsid_lookup/dbSNP_grch38_b153.lmdb")
     return lookups.FindRsid(data_fn)
 
 
