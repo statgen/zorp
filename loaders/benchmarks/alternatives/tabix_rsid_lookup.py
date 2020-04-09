@@ -122,14 +122,11 @@ class LookupRsidsTabix:
 
 if __name__ == '__main__':
     ####
-    # Local development
+    # Local development (uses part of sumstats, with a matching section of dbsnp)
     # gwas_reader = sniffers.guess_gwas_standard(
     #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/summary_stats_1k_lines.tab'
     # )
-    # TODO: Make an LMDB version based on just part of the tabix file
-    # Eg: sumstats = text or gzip file
-    # rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
-
+    # # rsid_finder = lookups.FindRsid('/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.lmdb')
     # rsid_finder = LookupRsidsTabix(
     #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.gz'
     # )
@@ -141,6 +138,6 @@ if __name__ == '__main__':
     # rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
 
     # Perform lookups and track results
-    gwas_reader.add_lookup('rsid', lambda variant: variant.rsid or rsid_finder(variant.chrom, variant.pos, variant.ref,
-                                                                               variant.alt))
+    gwas_reader.add_lookup('rsid', lambda variant: rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+
     gwas_reader.write('deleteme.gz')
