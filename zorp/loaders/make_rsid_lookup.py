@@ -32,6 +32,8 @@ import pysam
 
 RSID_CAPTURE = re.compile(r'RS=(\d+);?')
 
+# The new dbSNP format uses refseq identifiers. Building a lookup based on human friendly chrom/pos/ref/alt
+#  requires converting human identifiers to and from refseq names
 VERSIONLESS_CHROMS = {
     'NC_000001': '1',
     'NC_000002': '2',
@@ -60,45 +62,30 @@ VERSIONLESS_CHROMS = {
     'NC_012920': 'MT',
 }
 
-# Our datasets use human-readable chromosomes, which must be converted to exactly the format used in the tabix
-#   index provided by NCBI (the .x suffix is a version string which may vary across builds; this is from b153)
-# FIXME Make work across builds
-CHROM_TO_TABIX = {
-    '1': 'NC_000001.10',
-    '10': 'NC_000010.10',
-    '11': 'NC_000011.9',
-    '12': 'NC_000012.11',
-    '13': 'NC_000013.10',
-    '14': 'NC_000014.8',
-    '15': 'NC_000015.9',
-    '16': 'NC_000016.9',
-    '17': 'NC_000017.10',
-    '18': 'NC_000018.9',
-    '19': 'NC_000019.9',
-    '2': 'NC_000002.11',
-    '20': 'NC_000020.10',
-    '21': 'NC_000021.8',
-    '22': 'NC_000022.10',
-    '3': 'NC_000003.11',
-    '4': 'NC_000004.11',
-    '5': 'NC_000005.9',
-    '6': 'NC_000006.11',
-    '7': 'NC_000007.13',
-    '8': 'NC_000008.10',
-    '9': 'NC_000009.11',
-    'MT': 'NC_012920.1',
-    'X': 'NC_000023.10',
-    'Y': 'NC_000024.9'
-}
+
+def make_chrom_to_contigs(tabix_file: pysam.TabixFile) -> dict:
+    """
+    In order to address a tabix file by position, we need the exact contig name. dbSNP builds use a versioned
+        identifier that changes across builds and versions.
+
+    This generates a lookup for converting human friendly chromosome names to things that can be used by a
+        particular dbSNP file. It automatically adjusts for small build differences
+    """
+    return {
+        # Eg '1': 'NC_000001.10',
+        VERSIONLESS_CHROMS[c.split('.', 1)[0]]: c
+        for c in tabix_file.contigs
+    }
 
 
 def fetch_regions_sequentially(source_fn: str, sample_regions: ty.Tuple[str, int, int]) -> ty.Iterator[str]:
     """Instead of loading an entire gzip file, create an iterator over a set of regions"""
     source = pysam.TabixFile(source_fn)
+    human_chrom_to_tabix = make_chrom_to_contigs(source)
 
     for region in sample_regions:
         chrom, start, end = region
-        dbsnp_chrom = CHROM_TO_TABIX[chrom]
+        dbsnp_chrom = human_chrom_to_tabix[chrom]
 
         for line in source.fetch(dbsnp_chrom, start, end):
             yield line

@@ -11,7 +11,7 @@ import pysam
 
 from zorp import sniffers
 
-from zorp.loaders.make_rsid_lookup import make_group_iterator, make_file_iterator, CHROM_TO_TABIX
+from zorp.loaders.make_rsid_lookup import make_group_iterator, make_file_iterator, make_chrom_to_contigs
 
 
 class LookupRsidsTabix:
@@ -43,8 +43,8 @@ class LookupRsidsTabix:
 
     def make_reader(self, chrom, start_pos):
         """Make a tabix reader from the data for the specified region"""
-        # TODO in a production tool we'd validate the chromosome to ensure it was known to dbsnp
-        dnsnp_chrom = CHROM_TO_TABIX[chrom]
+        human_chrom_to_tabix = make_chrom_to_contigs(self._tabix)
+        dnsnp_chrom = human_chrom_to_tabix[chrom]
         segment = self._tabix.fetch(dnsnp_chrom, start_pos, start_pos + self._max_segment)
         all_lines = make_file_iterator(segment)
 
