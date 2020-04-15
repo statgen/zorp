@@ -7,17 +7,20 @@ import typing as ty
 import lmdb
 import msgpack
 
-from . import exceptions
+from . import assets, exceptions
 
 
-class FindRsid:
+class SnpToRsid:
     """Convert SNP coordinates to RSID information"""
-    def __init__(self, path: str, *, num_chroms: int = 25):
-        if path == 'GRCh37' or path == 'GRCh38':
-            raise NotImplementedError('Pre-defined builds and data cache directory not yet implemented')
-
+    def __init__(self, path: str, *, num_chroms: int = 25, test=True):
         if not path:
             raise exceptions.ConfigurationException('Must provide a path to the lookup file')
+
+        if path == 'GRCh37' or path == 'GRCh38':
+            record_type = 'snp_to_rsid'
+            if test:
+                record_type += '_test'
+            path = assets.manager.locate(record_type, genome_build=path)
 
         self.env = lmdb.open(path, subdir=False, max_dbs=num_chroms, readonly=True)
         self.db_handles = {}  # type: dict

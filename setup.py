@@ -125,7 +125,7 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(exclude=['docs', 'tests']),  # Required
+    packages=find_packages(exclude=['docs', 'tests', 'loaders', '.venv']),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -133,7 +133,7 @@ setup(
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
     python_requires='>=3.5',
-    install_requires=['pysam'],  # Optional
+    install_requires=['pysam', 'filefetcher'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
@@ -152,14 +152,11 @@ setup(
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # `pip` to create the appropriate form of executable for the target
     # platform.
-    #
-    # For example, the following would provide a command called `sample` which
-    # executes the function `main` from this package when invoked:
 
     entry_points={
         'console_scripts': [
             'zorp-convert=bin.zorp_convert:run_cli',
-            'zorp-download=bin.zorp_download:run_cli'
+            'zorp-download=zorp.assets:main'
         ],
     },
 

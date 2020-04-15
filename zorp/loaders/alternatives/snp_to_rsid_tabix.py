@@ -1,45 +1,17 @@
 #!/usr/bin/env python
 """
 Look up the RSID associated with a variant, based on a tabixed copy of dbSNP
+
+This script is provided for internal development reference. It is not a fully-fledged lookup utility and should not
+    be relied on for production use. Some filenames/ chrom versions may be hard-coded, etc.
 """
 import typing as ty
 
 import pysam
 
-from zorp import lookups, parsers, sniffers
+from zorp import sniffers
 
-from loaders.make_rsid_lookup import make_group_iterator, make_file_iterator
-
-# Our datasets use human-readable chromosomes, which must be converted to exactly the format used in the tabix
-#   index provided by NCBI (the .x suffix is a version string which may vary across builds; this is from b153)
-# TODO In a production script, we'd control for version numbers
-CHROM_TO_TABIX = {
-    '1': 'NC_000001.10',
-    '10': 'NC_000010.10',
-    '11': 'NC_000011.9',
-    '12': 'NC_000012.11',
-    '13': 'NC_000013.10',
-    '14': 'NC_000014.8',
-    '15': 'NC_000015.9',
-    '16': 'NC_000016.9',
-    '17': 'NC_000017.10',
-    '18': 'NC_000018.9',
-    '19': 'NC_000019.9',
-    '2': 'NC_000002.11',
-    '20': 'NC_000020.10',
-    '21': 'NC_000021.8',
-    '22': 'NC_000022.10',
-    '3': 'NC_000003.11',
-    '4': 'NC_000004.11',
-    '5': 'NC_000005.9',
-    '6': 'NC_000006.11',
-    '7': 'NC_000007.13',
-    '8': 'NC_000008.10',
-    '9': 'NC_000009.11',
-    'MT': 'NC_012920.1',
-    'X': 'NC_000023.10',
-    'Y': 'NC_000024.9'
-}
+from zorp.loaders.make_rsid_lookup import make_group_iterator, make_file_iterator, CHROM_TO_TABIX
 
 
 class LookupRsidsTabix:
@@ -110,7 +82,7 @@ class LookupRsidsTabix:
         # Look up the rsid associated with a current SNP.
         self._advance_current_reader(chrom, pos)
 
-        snp_chrom, snp_pos, ref_alt_options = self._current_row
+        snp_chrom, snp_pos, ref_alt_options = self._current_row  # type: ignore
         if snp_chrom != chrom or snp_pos != pos:
             # Ensure that the dbSNP reader is at the correct position!
             return None
@@ -126,7 +98,9 @@ if __name__ == '__main__':
     # gwas_reader = sniffers.guess_gwas_standard(
     #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/summary_stats_1k_lines.tab'
     # )
-    # # rsid_finder = lookups.FindRsid('/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.lmdb')
+    # rsid_finder = lookups.SnpToRsid(
+    #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.lmdb'
+    # )
     # rsid_finder = LookupRsidsTabix(
     #     '/Users/abought/code/personal/zorp/loaders/benchmarks/data/dbsnp_b153_fragment_for_sumstats_benchmarks.gz'
     # )
@@ -135,9 +109,11 @@ if __name__ == '__main__':
     # Options useful on the cluster (full dataset)
     gwas_reader = sniffers.guess_gwas_standard('/home/abought/code/zorp/loaders/benchmarks/data/summary_stats.gz')
     rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
-    # rsid_finder = lookups.FindRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
+    # rsid_finder = lookups.SnpToRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
 
     # Perform lookups and track results
-    gwas_reader.add_lookup('rsid', lambda variant: rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+    gwas_reader.add_lookup(
+        'rsid', lambda variant: rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt)  # type: ignore
+    )
 
     gwas_reader.write('deleteme.gz')

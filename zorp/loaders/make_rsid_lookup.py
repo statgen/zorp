@@ -14,21 +14,21 @@ The final database format (one database per chromosome) is:
 
 {  pos:  { 'ref/alt1': 1 , 'ref/alt2': 2 }  (where rs1 and rs2 are represented as integers, "1" and "2")
 """
-import argparse
 import gzip
 import itertools
 import os
 import re
 import struct
-import sys
+import tempfile
 import typing as ty
+import urllib.request
 
 from fastnumbers import int
+from filefetcher.manager import BuildTask
 import lmdb
 import msgpack
+import pysam
 
-# TODO: Provide a "test data" implementation, in which only certain regions are listed
-# Brca1, brca2, herc2, tcf7l2, APOE , APOB, PCSK9, CYP2E1
 
 RSID_CAPTURE = re.compile(r'RS=(\d+);?')
 
@@ -60,6 +60,49 @@ VERSIONLESS_CHROMS = {
     'NC_012920': 'MT',
 }
 
+# Our datasets use human-readable chromosomes, which must be converted to exactly the format used in the tabix
+#   index provided by NCBI (the .x suffix is a version string which may vary across builds; this is from b153)
+# FIXME Make work across builds
+CHROM_TO_TABIX = {
+    '1': 'NC_000001.10',
+    '10': 'NC_000010.10',
+    '11': 'NC_000011.9',
+    '12': 'NC_000012.11',
+    '13': 'NC_000013.10',
+    '14': 'NC_000014.8',
+    '15': 'NC_000015.9',
+    '16': 'NC_000016.9',
+    '17': 'NC_000017.10',
+    '18': 'NC_000018.9',
+    '19': 'NC_000019.9',
+    '2': 'NC_000002.11',
+    '20': 'NC_000020.10',
+    '21': 'NC_000021.8',
+    '22': 'NC_000022.10',
+    '3': 'NC_000003.11',
+    '4': 'NC_000004.11',
+    '5': 'NC_000005.9',
+    '6': 'NC_000006.11',
+    '7': 'NC_000007.13',
+    '8': 'NC_000008.10',
+    '9': 'NC_000009.11',
+    'MT': 'NC_012920.1',
+    'X': 'NC_000023.10',
+    'Y': 'NC_000024.9'
+}
+
+
+def fetch_regions_sequentially(source_fn: str, sample_regions: ty.Tuple[str, int, int]) -> ty.Iterator[str]:
+    """Instead of loading an entire gzip file, create an iterator over a set of regions"""
+    source = pysam.TabixFile(source_fn)
+
+    for region in sample_regions:
+        chrom, start, end = region
+        dbsnp_chrom = CHROM_TO_TABIX[chrom]
+
+        for line in source.fetch(dbsnp_chrom, start, end):
+            yield line
+
 
 def line_parser(row) -> ty.Tuple[str, int, str, str, int]:
     """For new dbSNP format, builds 152+"""
@@ -77,10 +120,10 @@ def line_parser(row) -> ty.Tuple[str, int, str, str, int]:
     return (chrom, pos, ref, alt, rsid)
 
 
-def make_file_iterator(handle) -> ty.Iterator[ty.Tuple[str, int, str, str, int]]:
+def make_file_iterator(handle: ty.Iterable) -> ty.Iterator[ty.Tuple[str, int, str, str, int]]:
     """
-    Parse the set of lines for an open file handle (text, gz, etc), and only give back the ones relevant to our
-        chrom/pos/ref/alt use case
+    Parse the set of lines for some iterator (eg over contents of an open text, gz, etc file), and only give back the
+        ones relevant to our chrom/pos/ref/alt use case
     """
     for row in handle:
         if row.startswith('#'):
@@ -115,18 +158,6 @@ def make_group_iterator(file_iterator) -> ty.Iterator[ty.Tuple[str, int, dict]]:
         yield chrom, position, position_contents
 
 
-def parse_args():
-    parser = argparse.ArgumentParser(description="Create a fast lookup for rsIDs")
-    parser.add_argument('source',
-                        help='The dbSNP VCF (in gzip format) that will be used to generate the lookup')
-    parser.add_argument('out', help='Output filename for the resulting database')
-    parser.add_argument('--force', action='store_true',
-                        help='If the file exists, force it to be overwritten')
-    parser.add_argument('--n_chroms', type=int, default=25,
-                        help="Number of chromosomes in the input file")
-    return parser.parse_args()
-
-
 def make_databases(env) -> dict:
     known = [
         '1', '2', '3', '4', '5', '6', '7', '8', '9', '10',
@@ -136,23 +167,24 @@ def make_databases(env) -> dict:
     return {k: env.open_db(bytes(k, "utf8"), integerkey=True) for k in known}
 
 
-def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
+def main(source_fn: str, out_fn: str, n_chroms=25, sample_regions=None):
+    """Perform this task in isolation for any dbsnp file"""
     if os.path.exists(out_fn):
         # LMDB would happily append / replace keys, but we want to create these files once and keep file size small
-        print('The requested output file already exists.')
-        if force:
-            print('It will be deleted and recreated')
-            os.remove(out_fn)
-        else:
-            sys.exit(1)
+        raise Exception('The requested output file already exists.')
 
     # To reduce disk usage, each chromosome is stored internally as a separate database (the same chrom key info isn't
     #   stored redundantly)
     env = lmdb.open(out_fn, subdir=False, max_dbs=n_chroms, map_size=25e9)
     db_handles = make_databases(env)
 
-    with env.begin(write=True) as txn, gzip.open(source_fn, "rt") as vcf:
-        all_lines = make_file_iterator(vcf)
+    if sample_regions:
+        iterator = fetch_regions_sequentially(source_fn, sample_regions)
+    else:
+        iterator = gzip.open(source_fn, "rt")
+
+    with env.begin(write=True) as txn:
+        all_lines = make_file_iterator(iterator)
         group_iterator = make_group_iterator(all_lines)
 
         for chrom, position, position_contents in group_iterator:
@@ -162,7 +194,48 @@ def main(source_fn: str, out_fn: str, force=False, n_chroms=25):
             txn.put(key, value, db=db_handles[chrom])
 
 
-if __name__ == "__main__":
-    args = parse_args()
-    main(args.source, args.out,
-         force=args.force, n_chroms=args.n_chroms)
+class MakeSnpToRsid(BuildTask):
+    """A packaged filefetcher build task that also downloads the necessary input files"""
+    def __init__(self, genome_build, sample_regions=None):
+        self.genome_build = genome_build
+        self.regions = sample_regions or None
+
+    def get_assets(self):
+        # Download the appropriate dbsnp file for a given genome build if does not exist
+        # Uses a system temp directory rather than the build folder in case file is needed between runs
+
+        # FIXME: The directory structure of new dbSNP is still too new to know what will change between releases, so
+        #  we don't yet have a generic way to get build information without downloading the files. For
+        #  now this is a hardcoded reference.
+        if self.genome_build == 'GRCh37':
+            source_url = 'ftp://ftp.ncbi.nih.gov/snp/redesign/latest_release/VCF/GCF_000001405.25.gz'
+        elif self.genome_build == 'GRCh38':
+            source_url = 'ftp://ftp.ncbi.nih.gov/snp/redesign/latest_release/VCF/GCF_000001405.38.gz'
+        else:
+            raise Exception('Unknown build')
+
+        dest_fn = os.path.join(tempfile.gettempdir(), os.path.basename(source_url))
+
+        if not os.path.exists(dest_fn):
+            # Download assets to a tempfile directory
+            urllib.request.urlretrieve(
+                source_url,
+                dest_fn
+            )
+            # And also Tabix index
+            urllib.request.urlretrieve(
+                source_url,
+                dest_fn + '.tbi'
+            )
+        return dest_fn
+
+    def build(self, manager, item_type: str, build_folder: str, **kwargs):
+        # FIXME: Hardcode dbsnp build until we build a more reliable way to get this info.
+        dbsnp_build = 'b153'
+
+        source_fn = self.get_assets()
+        dest_fn = '{}_{}_{}.lmdb'.format(item_type, self.genome_build, dbsnp_build)
+
+        main(source_fn, dest_fn)
+
+        return dest_fn, {'dbsnp_build': dbsnp_build}
