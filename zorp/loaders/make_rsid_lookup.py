@@ -69,12 +69,12 @@ def make_chrom_to_contigs(tabix_file: pysam.TabixFile) -> dict:
         identifier that changes across builds and versions.
 
     This generates a lookup for converting human friendly chromosome names to things that can be used by a
-        particular dbSNP file. It automatically adjusts for small build differences
+        particular dbSNP file. It automatically adjusts for small build differences and excludes non-chrom contigs
     """
     return {
         # Eg '1': 'NC_000001.10',
         VERSIONLESS_CHROMS[c.split('.', 1)[0]]: c
-        for c in tabix_file.contigs
+        for c in tabix_file.contigs if c.startswith('NC')
     }
 
 
