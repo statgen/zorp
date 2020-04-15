@@ -234,8 +234,12 @@ class MakeSnpToRsid(BuildTask):
         dbsnp_build = 'b153'
 
         source_fn = self.get_assets()
-        dest_fn = '{}_{}_{}.lmdb'.format(item_type, self.genome_build, dbsnp_build)
+        print('Building to: ', build_folder)
+        dest_fn = os.path.join(
+            build_folder,
+            '{}_{}_{}.lmdb'.format(item_type, self.genome_build, dbsnp_build)
+        )
 
-        main(source_fn, dest_fn)
+        main(source_fn, dest_fn, sample_regions=self.regions)
 
         return dest_fn, {'dbsnp_build': dbsnp_build}
