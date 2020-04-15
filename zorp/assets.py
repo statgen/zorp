@@ -7,8 +7,8 @@ from filefetcher import AssetCLI, AssetManager
 
 
 # For routine use, instantiate a manager. It will locate cached copies of asset files.
-# FIXME: Find a "real" download URL (eg S3 bucket)
-manager = AssetManager('zorp', 'https://download-server.example/mylib/')  # site hosts a manifest.json file
+# FIXME: Temporary download URL; will eventually move this to an S3 bucket
+manager = AssetManager('zorp', 'https://csg-assets.occsci.com/zorp/manifest.json')  # site hosts a manifest.json file
 
 
 def main():
