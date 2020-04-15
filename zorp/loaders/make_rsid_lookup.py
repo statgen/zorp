@@ -224,7 +224,7 @@ class MakeSnpToRsid(BuildTask):
             )
             # And also Tabix index
             urllib.request.urlretrieve(
-                source_url,
+                source_url + '.tbi',
                 dest_fn + '.tbi'
             )
         return dest_fn
