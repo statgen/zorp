@@ -12,7 +12,7 @@ from . import assets, exceptions
 
 class SnpToRsid:
     """Convert SNP coordinates to RSID information"""
-    def __init__(self, path: str, *, num_chroms: int = 25, test=True):
+    def __init__(self, path: str, *, num_chroms: int = 25, test=False):
         if not path:
             raise exceptions.ConfigurationException('Must provide a path to the lookup file')
 

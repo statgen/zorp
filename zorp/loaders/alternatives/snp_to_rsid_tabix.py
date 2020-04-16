@@ -11,6 +11,7 @@ import pysam
 
 from zorp import sniffers
 
+from zorp import lookups
 from zorp.loaders.make_rsid_lookup import make_group_iterator, make_file_iterator, make_chrom_to_contigs
 
 
@@ -108,8 +109,8 @@ if __name__ == '__main__':
     ###
     # Options useful on the cluster (full dataset)
     gwas_reader = sniffers.guess_gwas_standard('/home/abought/code/zorp/loaders/benchmarks/data/summary_stats.gz')
-    rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
-    # rsid_finder = lookups.SnpToRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
+    # rsid_finder = LookupRsidsTabix('/home/abought/dbsnp/b153/GCF_000001405.25.gz')
+    rsid_finder = lookups.SnpToRsid('/home/abought/dbsnp/b153/dbSNP_grch37_b153.lmdb')
 
     # Perform lookups and track results
     gwas_reader.add_lookup(
