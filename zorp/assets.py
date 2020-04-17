@@ -11,11 +11,12 @@ from filefetcher import AssetCLI, AssetManager
 manager = AssetManager('zorp', 'https://csg-assets.occsci.com/zorp/manifest.json')  # site hosts a manifest.json file
 
 
-def main():
+def set_recipes():
     """
-    Main method. The Zorp use case assumes that all assets are built in advance, so we will only define recipes when
-     this script is used in CLI mode.
+    The Zorp use case assumes that all assets are built in advance, so we will only define recipes
+        when explicitly asked to do so (such as in CLI mode)
     """
+
     from .loaders.make_rsid_lookup import MakeSnpToRsid
 
     B37_SAMPLE_GENES = (
@@ -69,6 +70,13 @@ def main():
         label='Find rsID information given chrom/pos/ref/alt',
         genome_build='GRCh38'
     )
+
+
+def main():
+    """
+    Main method. Register recipes and run the CLI.
+    """
+    set_recipes()
 
     cli = AssetCLI(manager)
     cli.run()
