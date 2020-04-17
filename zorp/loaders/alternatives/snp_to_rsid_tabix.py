@@ -4,6 +4,8 @@ Look up the RSID associated with a variant, based on a tabixed copy of dbSNP
 
 This script is provided for internal development reference. It is not a fully-fledged lookup utility and should not
     be relied on for production use. Some filenames/ chrom versions may be hard-coded, etc.
+
+TODO: Small changes to data pipeline have been made; verify that the `LookupRsidsTabix` still works
 """
 import typing as ty
 
@@ -23,11 +25,11 @@ class LookupRsidsTabix:
     def __init__(self, source_fn: str, max_segment: int = 50000):
         # Define the data to iterate over
         self._tabix = pysam.TabixFile(source_fn)
-        self._current_reader = None  # type: ty.Iterator[str]
+        self._current_reader = None  # type: ty.Iterable[ty.Tuple[str, ty.Any, ty.Dict[ty.Any, ty.Any]]]
 
         # Store the "current" row (sometimes our dbsnp reader will get AHEAD of the sumstats reader,
         #   or be asked for the same position twice in a row, eg multiallelic variants)
-        self._current_row = None
+        self._current_row = None  # type: ty.Tuple[str, ty.Any, ty.Dict[ty.Any, ty.Any]]
 
         # Optimization: actual dbSNP is a very large file, and we want to only iterate over the parts near variants
         #   in the sumstats file
@@ -72,7 +74,7 @@ class LookupRsidsTabix:
         # If the dbSNP reader is lagging the gwas reader, then we need to advance
         while chrom != target_chrom or pos < target_pos:
             try:
-                self._current_row = next(self._current_reader)
+                self._current_row = next(self._current_reader)  # type: ignore
             except StopIteration:
                 # If we hit the end of the dbSNP file, exit the loop and never let the iterator advance again
                 break
@@ -83,7 +85,7 @@ class LookupRsidsTabix:
         # Look up the rsid associated with a current SNP.
         self._advance_current_reader(chrom, pos)
 
-        snp_chrom, snp_pos, ref_alt_options = self._current_row  # type: ignore
+        snp_chrom, snp_pos, ref_alt_options = self._current_row
         if snp_chrom != chrom or snp_pos != pos:
             # Ensure that the dbSNP reader is at the correct position!
             return None

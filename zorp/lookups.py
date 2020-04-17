@@ -44,11 +44,11 @@ class SnpToRsid:
         key = struct.pack('I', int(pos))
         with self.env.begin(buffers=True) as txn:
             res = txn.get(key, db=db)
-            if res: # If there is a match for this position, find any matching ref/alts
+            if res:  # If there is a match for this position, find any matching ref/alts
                 res = msgpack.unpackb(res, use_list=False)
                 res = res.get('{}/{}'.format(ref, alt))
 
-            if res is not None: # If this exact snp has a match, format it as `rsINT_VALUE` for display
+            if res is not None:  # If this exact snp has a match, format it as `rsINT_VALUE` for display
                 res = 'rs{}'.format(res)
         return res
 

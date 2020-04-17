@@ -124,7 +124,7 @@ def make_file_iterator(handle: ty.Iterable) -> ty.Iterator[ty.Tuple[str, int, st
         yield line_parser(row)
 
 
-def make_group_iterator(file_iterator) -> ty.Iterator[ty.Tuple[str, int, dict]]:
+def make_group_iterator(file_iterator) -> ty.Iterable[ty.Tuple[str, int, dict]]:
     """Create an iterator that returns all possible ref/alt : rsid pairs for that position"""
 
     chrom = None
