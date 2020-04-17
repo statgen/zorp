@@ -16,10 +16,45 @@ ZORP provides a high level abstraction. This means that it is convenient, at the
 For GWAS files, ZORP does not sort the data for you, because doing so in python would be quite slow. You will still 
 need to do some basic data preparation before using.
 
+## Installation
+By default, zorp installs with as few python dependencies as practical. For more performance, and to use special
+ features, install the additional required dependencies as follows: 
+
+`$ pip install zorp[perf,lookups]`
+
+The snp-to-rsid lookup requires a very large file in order to work efficiently. You can download the pre-generated file
+using the `zorp-assets` command line script, as follows.
+ (use "--no-update" to skip warnings about already having the latest version)
+
+```bash
+$ zorp-assets download --type snp_to_rsid --tag genome_build GRCh37  --no-update
+$ zorp-assets download --type snp_to_rsid --tag genome_build GRCh37
+```
+
+Or build it manually (which may require first downloading a large source file):
+`$ zorp-assets build --type snp_to_rsid --tag genome_build GRCh37`
+
+Assets will be downloaded to the least user-specific location available, which may be overridden by setting the
+ environment variable `ZORP_ASSETS_DIR`. Run `zorp-assets show --all` to see the currently selected asset directory.
+ 
+
+### A note on rsID lookups
+When developing on your laptop, you may not wish to download 16 GB of data per rsID lookup. A much smaller "test"
+ dataset is available, which contains rsID data for a handful of pre-selected genes of known biological functionality.
+
+`$ zorp-assets download --type snp_to_rsid_test --tag genome_build GRCh37`
+
+To use it in your python script, simply add an argument to the SnpToRsid constructor: 
+
+`rsid_finder = lookups.SnpToRsid('GRCh37', test=True)`
+
+If you have generated your own lookup using the code in this repo (`make_rsid_lookup.py`), you may also replace 
+the genome build with a hardcoded path to the LMDB file of lookup data. This use case is fairly uncommon, however.
+
 ## Usage
 ### Python
 ```python
-from zorp import readers, parsers
+from zorp import lookups, readers, parsers
 
 # Create a reader instance. This example specifies each option for clarity, but sniffers are provided to auto-detect 
 #   common format options.
@@ -29,7 +64,9 @@ reader = readers.TabixReader('input.bgz', parser=sample_parser, skip_rows=1, ski
 
 # After parsing the data, values of pre-defined fields can be used to perform lookups for the value of one field
 #  Lookups can be reusable functions with no dependence on zorp
-reader.add_lookup('rsid', lambda variant: some_rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
+rsid_finder = lookups.SnpToRsid('GRCh37')
+
+reader.add_lookup('rsid', lambda variant: rsid_finder(variant.chrom, variant.pos, variant.ref, variant.alt))
 
 # Sometimes a more powerful syntax is needed- the ability to look up several fields at once, or clean up parsed data 
 #   in some way unique to this dataset 
