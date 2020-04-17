@@ -1,7 +1,6 @@
 """
 Parsers: handle the act of reading one entity (such as line)
 """
-import abc
 import math
 import numbers
 import typing as ty
@@ -24,17 +23,17 @@ class BasicVariant:
     _fields = ('chrom', 'pos', 'rsid', 'ref', 'alt', 'neg_log_pvalue', 'beta', 'stderr_beta', 'alt_allele_freq')
 
     def __init__(self, chrom, pos, rsid, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
-        self.chrom: str = chrom
-        self.pos: int = pos
-        self.rsid: str = rsid
-        self.ref: str = ref
-        self.alt: str = alt
-        self.neg_log_pvalue: float = neg_log_pvalue
+        self.chrom = chrom  # type: str
+        self.pos = pos  # type: int
+        self.rsid = rsid  # type: str
+        self.ref = ref  # type: str
+        self.alt = alt  # type: str
+        self.neg_log_pvalue = neg_log_pvalue  # type: float
 
         # # Optional fields for future expansion
         # af: float
-        self.beta: float = beta
-        self.stderr_beta: float = stderr_beta
+        self.beta = beta  # type: float
+        self.stderr_beta = stderr_beta  # type: float
 
         self.alt_allele_freq = alt_allele_freq
 
@@ -61,146 +60,88 @@ class BasicVariant:
     @property
     def marker(self) -> str:
         """Specify the marker in a string format compatible with UM LD server and other variant-specific requests"""
-        ref_alt = f'_{self.ref}/{self.alt}' if (self.ref and self.alt) else ''
-        return f'{self.chrom}:{self.pos}{ref_alt}'
+        ref_alt = '_{}/{}'.format(self.ref, self.alt) \
+            if (self.ref and self.alt) else ''
+        return '{}:{}{}'.format(self.chrom, self.pos, ref_alt)
 
     def to_dict(self):
         # Some tools expect the data in a mutable form (eg dicts)
         return {s: getattr(self, s, None) for s in self._fields}
 
 
-class AbstractLineParser(abc.ABC):
-    """
-    Abstract parser that returns a line of text into GWAS data
-    This base class is reserved for future refactoring
-    """
-    def __init__(self, *args,
-                 container: ty.Callable[..., object] = tuple,
-                 **kwargs):
-        """
-        :param container: A data structure (eg tuple or slotted object) that will be populated with the parsed results
-        """
-        self._container = container
-
-    @abc.abstractmethod
-    def __call__(self, row: str) -> object:
-        pass
-
-
-class TupleLineParser(AbstractLineParser):
+def TupleLineParser(*args, container: ty.Callable = tuple, delimiter='\t', **kwargs):
     """
     Parse a line of text and return a tuple of the fields. Performs no type coercion
 
     This isn't recommended for everyday parsing, but it is useful internally for format detection (where we need to
         split columns of data, but aren't yet ready to clean and assign meaning to the values)
     """
-    def __init__(self, *args, container: ty.Callable = tuple, delimiter='\t', **kwargs):
-        super(TupleLineParser, self).__init__(*args, container=container, **kwargs)
-        self._delimiter = delimiter
-
-    def __call__(self, line: str):
+    def inner(line: str):
+        """Return a stateful closure that actually does the work of parsing"""
         try:
-            values = line.strip().split(self._delimiter)
-            return self._container(values)
+            values = line.strip().split(delimiter)
+            return container(values)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=line)
+    return inner
 
 
-class GenericGwasLineParser(TupleLineParser):
+def GenericGwasLineParser(
+        *args,
+        delimiter: str = '\t',
+        container: ty.Callable[..., BasicVariant] = BasicVariant,
+        # Variant identifiers: marker OR individual
+        chrom_col: int = None, chr_col: int = None,  # Legacy alias
+        pos_col: int = None,
+        ref_col: int = None,
+        alt_col: int = None,
+        marker_col: int = None,
+        # Other required data
+        pvalue_col: int = None, pval_col: int = None,  # Legacy alias
+        # Optional fields
+        rsid_col: int = None,
+        beta_col: int = None,
+        stderr_beta_col: int = None,
+
+        allele_freq_col: int = None,  # As freq OR by two count fields
+        allele_count_col: int = None,
+        n_samples_col: int = None,
+        # Other configuration options that apply to every row as constants
+        is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
+        is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
+        **kwargs):
     """
     A simple parser that extracts GWAS information from a flexible file format.
 
     Constructor expects human-friendly column numbers (first = column 1)
     """
-    # Provide faster attribute access because these field lookups will happen a *lot*
-    __slots__ = [
-        '_container',
-        '_chrom_col', 'rsid_col', '_pos_col', '_ref_col', '_alt_col', '_marker_col', '_pvalue_col',
-        '_pvalue_col', '_beta_col', '_stderr_col', '_allele_freq_col', '_allele_count_col',
-        '_n_samples_col', '_is_neg_log_pvalue', '_is_alt_effect'
-    ]
-
-    def __init__(self, *args,
-                 container: ty.Callable[..., BasicVariant] = BasicVariant,
-                 # Variant identifiers: marker OR individual
-                 chrom_col: int = None, chr_col: int = None,  # Legacy alias
-                 pos_col: int = None,
-                 ref_col: int = None,
-                 alt_col: int = None,
-                 marker_col: int = None,
-                 # Other required data
-                 pvalue_col: int = None, pval_col: int = None,  # Legacy alias
-                 # Optional fields
-                 rsid_col: int = None,
-                 beta_col: int = None,
-                 stderr_beta_col: int = None,
-
-                 allele_freq_col: int = None,  # As freq OR by two count fields
-                 allele_count_col: int = None,
-                 n_samples_col: int = None,
-                 # Other configuration options that apply to every row as constants
-                 is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
-                 is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
-                 **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # All GWAS parsers can specify
-        self._container = container
-
-        # Chrom field has a legacy alias, allowing older parser configs to work.
-        self._chrom_col = utils.human_to_zero(chrom_col) if chrom_col is not None else utils.human_to_zero(chr_col)
-        self._pos_col = utils.human_to_zero(pos_col)
-        self._ref_col = utils.human_to_zero(ref_col)
-        self._alt_col = utils.human_to_zero(alt_col)
-
-        self._marker_col = utils.human_to_zero(marker_col)
-
-        # Support legacy alias for field name
-        self._pvalue_col = utils.human_to_zero(pvalue_col) if pvalue_col is not None else utils.human_to_zero(pval_col)
-
-        self._rsid_col = utils.human_to_zero(rsid_col)
-        self._beta_col = utils.human_to_zero(beta_col)
-        self._stderr_col = utils.human_to_zero(stderr_beta_col)
-
-        self._allele_freq_col = utils.human_to_zero(allele_freq_col)
-        self._allele_count_col = utils.human_to_zero(allele_count_col)
-        self._n_samples_col = utils.human_to_zero(n_samples_col)
-
-        self._is_neg_log_pvalue = is_neg_log_pvalue or is_log_pval  # The latter option is an alias for legacy reasons
-        self._is_alt_effect = is_alt_effect
-
-        self.validate_config()
-
-    def validate_config(self):
+    def validate_config():
         """Ensures that a minimally working parser has been created"""
         # Some old gwas files may not have ref and alt (incomplete marker, or missing columns). These fields aren't
         #   strictly required, but we really really like to have them
-        has_position = (self._marker_col is not None) ^ all(getattr(self, x) is not None
-                                                            for x in ('_chrom_col', '_pos_col'))
+        has_position = (_marker_col is not None) ^ all(x is not None
+                                                       for x in (_chrom_col, _pos_col))
         # If we do have one allele, we must have both
-        both_markers = (self._ref_col is None and self._alt_col is None) or \
-                       (self._ref_col is not None and self._alt_col is not None)
+        both_markers = (_ref_col is None and _alt_col is None) or \
+                       (_ref_col is not None and _alt_col is not None)
 
-        is_valid = has_position and both_markers and (self._pvalue_col is not None)
+        is_valid = has_position and both_markers and (_pvalue_col is not None)
         if not is_valid:
             raise exceptions.ConfigurationException('GWAS parser must specify how to find all required fields')
 
-        if self._allele_count_col and self._allele_freq_col:
+        if _allele_count_col is not None and _allele_freq_col is not None:
             raise exceptions.ConfigurationException('Allele count and frequency options are mutually exclusive')
 
-        if self._allele_count_col and not self._n_samples_col:
+        if _allele_count_col is not None and _n_samples_col is None:
             raise exceptions.ConfigurationException(
                 'To calculate allele frequency from counts, you must also provide n_samples')
 
         return is_valid
 
-    @property
-    def fields(self) -> ty.Container:
-        return self._container._fields  # type: ignore
-
-    def __call__(self, line: str):
+    def inner(line):
+        # Return a stateful closure that does the actual work of parsing
         try:
-            fields = line.strip().split(self._delimiter)
+            fields = line.strip().split(delimiter)
             if len(fields) == 1:
                 raise exceptions.LineParseException(
                     'Unable to split line into separate fields. This line may have a missing or incorrect delimiter.')
@@ -208,11 +149,11 @@ class GenericGwasLineParser(TupleLineParser):
             # Fetch values
             ref = None
             alt = None
-            if self._marker_col is not None:
-                chrom, pos, ref, alt = utils.parse_marker(fields[self._marker_col])
+            if _marker_col is not None:
+                chrom, pos, ref, alt = utils.parse_marker(fields[_marker_col])
             else:
-                chrom = fields[self._chrom_col]
-                pos = fields[self._pos_col]
+                chrom = fields[_chrom_col]
+                pos = fields[_pos_col]
 
             if chrom.startswith('chr'):
                 chrom = chrom[3:]
@@ -220,13 +161,13 @@ class GenericGwasLineParser(TupleLineParser):
             chrom = chrom.upper()
 
             # Explicit columns will override a value from the marker, by design
-            if self._ref_col is not None:
-                ref = fields[self._ref_col]
+            if _ref_col is not None:
+                ref = fields[_ref_col]
 
-            if self._alt_col is not None:
-                alt = fields[self._alt_col]
+            if _alt_col is not None:
+                alt = fields[_alt_col]
 
-            pval = fields[self._pvalue_col]
+            pval = fields[_pvalue_col]
 
             # Some optional fields
             rsid = None
@@ -236,28 +177,28 @@ class GenericGwasLineParser(TupleLineParser):
             allele_count = None
             n_samples = None
 
-            if self._rsid_col is not None:
-                rsid = fields[self._rsid_col]
+            if _rsid_col is not None:
+                rsid = fields[_rsid_col]
                 if rsid in MISSING_VALUES:
                     rsid = None
                 elif not rsid.startswith('rs'):
                     rsid = 'rs' + rsid
 
-            if self._beta_col is not None:
-                beta = fields[self._beta_col]
+            if _beta_col is not None:
+                beta = fields[_beta_col]
 
-            if self._stderr_col is not None:
-                stderr_beta = fields[self._stderr_col]
+            if _stderr_col is not None:
+                stderr_beta = fields[_stderr_col]
 
-            if self._allele_freq_col is not None:
-                alt_allele_freq = fields[self._allele_freq_col]
+            if _allele_freq_col is not None:
+                alt_allele_freq = fields[_allele_freq_col]
 
-            if self._allele_count_col is not None:
-                allele_count = fields[self._allele_count_col]
-                n_samples = fields[self._n_samples_col]
+            if _allele_count_col is not None:
+                allele_count = fields[_allele_count_col]
+                n_samples = fields[_n_samples_col]
 
             # Perform type coercion
-            log_pval = utils.parse_pval_to_log(pval, is_neg_log=self._is_neg_log_pvalue)
+            log_pval = utils.parse_pval_to_log(pval, is_neg_log=_is_neg_log_pvalue)
 
             try:
                 pos = int(pos)
@@ -268,19 +209,19 @@ class GenericGwasLineParser(TupleLineParser):
                 except ValueError:
                     # If we still can't parse, it's probably bad data
                     raise exceptions.LineParseException(
-                        f'Positions should be specified as integers. Could not parse value: {pos}')
+                        'Positions should be specified as integers. Could not parse value: {}'.format(pos))
 
             if beta is not None:
                 beta = None if beta in MISSING_VALUES else float(beta)
             if stderr_beta is not None:
                 stderr_beta = None if stderr_beta in MISSING_VALUES else float(stderr_beta)
 
-            if self._allele_freq_col or self._allele_count_col:
+            if _allele_freq_col or _allele_count_col:
                 alt_allele_freq = utils.parse_allele_frequency(
                     freq=alt_allele_freq,
                     allele_count=allele_count,
                     n_samples=n_samples,
-                    is_alt_effect=self._is_alt_effect
+                    is_alt_effect=_is_alt_effect
                 )
 
             # Some old GWAS files simply won't provide ref or alt information, and the parser will need to do without
@@ -296,7 +237,39 @@ class GenericGwasLineParser(TupleLineParser):
             if isinstance(alt, str):
                 alt = alt.upper()
 
-            container = self._container(chrom, pos, rsid, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq)
+            result = container(chrom, pos, rsid, ref, alt, log_pval, beta, stderr_beta, alt_allele_freq)
         except Exception as e:
             raise exceptions.LineParseException(str(e), line=line)
-        return container
+        return result
+
+    # Convert the user-provided values to field array indices (0-based), and validate config
+    # Chrom field has a legacy alias, allowing older parser configs to work.
+    inner._chrom_col = _chrom_col = utils.human_to_zero(chrom_col) if chrom_col is not None else utils.human_to_zero(chr_col)  # type: ignore  # noqa
+    inner._pos_col = _pos_col = utils.human_to_zero(pos_col)  # type: ignore
+    inner._ref_col = _ref_col = utils.human_to_zero(ref_col)  # type: ignore
+    inner._alt_col = _alt_col = utils.human_to_zero(alt_col)  # type: ignore
+
+    inner._marker_col = _marker_col = utils.human_to_zero(marker_col)  # type: ignore
+
+    # Support legacy alias for field name
+    inner._pvalue_col = _pvalue_col = utils.human_to_zero(pvalue_col) if pvalue_col is not None else utils.human_to_zero(pval_col)  # type: ignore  # noqa
+
+    inner._rsid_col = _rsid_col = utils.human_to_zero(rsid_col)  # type: ignore
+    inner._beta_col = _beta_col = utils.human_to_zero(beta_col)  # type: ignore
+    inner._stderr_col = _stderr_col = utils.human_to_zero(stderr_beta_col)  # type: ignore
+
+    inner._allele_freq_col = _allele_freq_col = utils.human_to_zero(allele_freq_col)  # type: ignore
+    inner._allele_count_col = _allele_count_col = utils.human_to_zero(allele_count_col)  # type: ignore
+    inner._n_samples_col = _n_samples_col = utils.human_to_zero(n_samples_col)  # type: ignore
+
+    # The latter option is an alias for legacy reasons
+    inner._is_neg_log_pvalue = _is_neg_log_pvalue = is_neg_log_pvalue or is_log_pval  # type: ignore
+    inner._is_alt_effect = _is_alt_effect = is_alt_effect  # type: ignore
+
+    # Raise an exception if the provided options are invalid
+    validate_config()
+
+    # Provide the outside world with access to additional named attributes
+    # We are slightly abusing closures, but the end result is ~10% is faster than a class-based callable
+    inner.fields = container._fields  # type: ignore
+    return inner

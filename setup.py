@@ -43,7 +43,7 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.2.0',  # Required
+    version='0.3.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -105,6 +105,7 @@ setup(
         # that you indicate whether you support Python 2, Python 3 or both.
         # These classifiers are *not* checked by 'pip install'. See instead
         # 'python_requires' below.
+        'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
     ],
@@ -124,15 +125,15 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(exclude=['docs', 'tests']),  # Required
+    packages=find_packages(exclude=['docs', 'tests', 'loaders', '.venv']),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
     # and refuse to install the project if the version does not match. If you
     # do not support Python 2, you can simplify this to '>=3.5' or similar, see
     # https://packaging.python.org/guides/distributing-packages-using-setuptools/#python-requires
-    python_requires='>=3.6',
-    install_requires=['pysam'],  # Optional
+    python_requires='>=3.5',
+    install_requires=['pysam', 'filefetcher'],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
@@ -144,19 +145,18 @@ setup(
     # projects.
     extras_require={  # Optional
         'test': ['coverage', 'pytest', 'pytest-flake8', 'pytest-mypy'],
-        'perf': ['fastnumbers==2.2.1']
+        'perf': ['fastnumbers==2.2.1'],
+        'lookups': ['lmdb', 'msgpack==1.0.0']
     },
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
     # `pip` to create the appropriate form of executable for the target
     # platform.
-    #
-    # For example, the following would provide a command called `sample` which
-    # executes the function `main` from this package when invoked:
 
     entry_points={
         'console_scripts': [
             'zorp-convert=bin.zorp_convert:run_cli',
+            'zorp-assets=zorp.assets:main'
         ],
     },
 

@@ -232,7 +232,7 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
         if not is_header(row, comment_char=comment_char, delimiter=delimiter):
             return i, last_row
         elif i >= max_check:
-            raise exceptions.SnifferException(f'No headers found after limit of {max_check} rows')
+            raise exceptions.SnifferException('No headers found after limit of {} rows'.format(max_check))
         last_row = row
 
     raise exceptions.SnifferException('No headers found after searching entire file')
@@ -240,7 +240,7 @@ def get_headers(reader, comment_char: str = "#", delimiter: str = '\t', max_chec
 
 def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
                        skip_rows=None,
-                       parser: parsers.AbstractLineParser = None,
+                       parser: ty.Callable[[str], object] = None,
                        parser_options: dict = None,
                        delimiter: str = '\t',
                        **kwargs) -> readers.BaseReader:
@@ -300,7 +300,7 @@ def guess_gwas_generic(filename: ty.Union[ty.Iterable, str], *,
 
 
 def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
-                        parser: parsers.AbstractLineParser = None,
+                        parser: ty.Callable[[str], object] = None,
                         parser_options: dict = None,
                         delimiter: str = '\t',
                         **kwargs) -> readers.BaseReader:
@@ -351,7 +351,7 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
             column_config[out_field] = index + 1
         except ValueError:
             raise exceptions.SnifferException(
-                f'File must specify all columns required by the standard format. Missing: {header}')
+                'File must specify all columns required by the standard format. Missing: {}'.format(header))
 
     for header, out_field in optional_cols:
         try:

@@ -126,7 +126,7 @@ class TestGenericGwasParser:
         parser = parsers.GenericGwasLineParser(chrom_col=1, pos_col=2, pvalue_col=3, rsid_col=4, delimiter='\t')
         for text, expected in scenarios:
             actual = parser(text).rsid
-            assert actual == expected, f'Found correct rsid from: {text}'
+            assert actual == expected, 'Found correct rsid from: {}'.format(text)
 
     def test_warns_about_incorrect_delimiter(self):
         """

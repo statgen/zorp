@@ -84,7 +84,7 @@ class TestIterableReader:
 
         assert expected_fn != out_fn
         assert out_fn.endswith('.gz')
-        assert os.path.exists(f'{out_fn}.tbi'), "Tabix index exists"
+        assert os.path.exists('{}.tbi'.format(out_fn)), "Tabix index exists"
 
         assert os.path.isfile(out_fn), "Output filename exists"
 
@@ -143,13 +143,13 @@ class TestIterableReader:
 
 class TestTabixReader:
     def test_tabix_mode_retrieves_data(self, simple_tabix_reader):
-        iterator = simple_tabix_reader.fetch(1, 800_000, 900_000)
+        iterator = simple_tabix_reader.fetch(1, 800000, 900000)
         assert isinstance(iterator, abc.Iterable), "returns an iterator"
         all_records = list(iterator)
         assert len(all_records) == 1, "one record in region"
 
         # Then try a different region. Should reuse same iterator.
-        iter2 = simple_tabix_reader.fetch("X", 2_600_000, 3_000_000)
+        iter2 = simple_tabix_reader.fetch("X", 2600000, 3000000)
         all_records = list(iter2)
         assert len(all_records) == 3, "Several records in region"
 
@@ -162,7 +162,7 @@ class TestTabixReader:
     def test_filter_criteria_with_tabix(self, simple_tabix_reader):
         iterator = simple_tabix_reader\
             .add_filter('ref', 'G')\
-            .fetch("X", 2_600_000, 3_000_000)
+            .fetch("X", 2600000, 3000000)
         all_records = list(iterator)
         assert len(all_records) == 2, "The region query obeyed filters"
 
