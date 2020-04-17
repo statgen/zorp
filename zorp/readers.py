@@ -42,14 +42,14 @@ class BaseReader(abc.ABC):
         # Filters, lookups, and mutations that should operate on each row
         # If no parser is provided, just splits the row into a tuple based on the specified delimiter
         self._parser = parser
-        self._filters: list = []  # Should we return this row from iteration?
-        self._lookups: list = []  # Find the value of a specified field given (parsed) variant info
-        self._transforms: list = []  # Modify the (parsed) variant info using a custom function.
+        self._filters = []  # type: list  # Should we return this row from iteration?
+        self._lookups = []  # type: list  # Find the value of a specified field given (parsed) variant info
+        self._transforms = []  # type: list  # Modify the (parsed) variant info using a custom function.
 
         # If using "skip error" mode, store a record of which lines had a problem (up to a point)
         self._skip_errors = skip_errors
         self._max_errors = max_errors
-        self.errors: list = []
+        self.errors = []  # type: list
 
         # The user must specify how many header rows to skip
         self._skip_rows = skip_rows
@@ -291,8 +291,8 @@ class TabixReader(BaseReader):
     """
     def __init__(self, *args, **kwargs):
         super(TabixReader, self).__init__(*args, **kwargs)
-        self._tabix: pysam.TabixFile = None
-        self._has_index = bool(self._source and os.path.isfile(f'{self._source}.tbi'))
+        self._tabix = None  # type: pysam.TabixFile
+        self._has_index = bool(self._source and os.path.isfile('{}.tbi'.format(self._source)))
 
     def _create_iterator(self):
         """

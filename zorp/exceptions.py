@@ -4,7 +4,7 @@ Exceptions related to reading and parsing data
 
 
 class BaseZorpException(Exception):
-    DEFAULT_MESSAGE: str
+    DEFAULT_MESSAGE = ''  # type: str
 
     def __init__(self, message=None, *args):
         super(BaseZorpException, self).__init__(*args)
@@ -15,7 +15,7 @@ class BaseZorpException(Exception):
 
 
 class ConfigurationException(BaseZorpException):
-    DEFAULT_MESSAGE = "Invalid option specified"
+    DEFAULT_MESSAGE = 'Invalid option specified'
 
 
 class SnifferException(BaseZorpException):
@@ -24,15 +24,15 @@ class SnifferException(BaseZorpException):
 
 class LineParseException(BaseZorpException):
     """An error occurred while parsing a single line. Capture the data that failed to parse for context."""
-    DEFAULT_MESSAGE = "Could not parse specified line"
+    DEFAULT_MESSAGE = 'Could not parse specified line'
 
-    def __init__(self, *args, line=None, ):
+    def __init__(self, *args, line=None):
         super(LineParseException, self).__init__(*args)
         self.line = line
 
 
 class TooManyBadLinesException(BaseZorpException):
-    DEFAULT_MESSAGE = "Too many lines in the file failed to parse; stopping"
+    DEFAULT_MESSAGE = 'Too many lines in the file failed to parse; stopping'
 
     def __init__(self, *args, error_list: list = None, **kwargs):
         super(TooManyBadLinesException, self).__init__(*args)
