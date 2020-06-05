@@ -2,6 +2,7 @@ import pytest
 
 from zorp import parsers
 
+
 ##
 # Sample preconfigured parsers that work with the data in these test suites
 # These were defined at a time before optional columns were introduced, so in practice many of our tests have the
