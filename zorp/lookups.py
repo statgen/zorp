@@ -26,7 +26,7 @@ class SnpToRsid:
         self.env = lmdb.open(path_or_build, subdir=False, max_dbs=num_chroms, readonly=True)
         self.db_handles = {}  # type: dict
 
-        self._known_chroms = self.known_chroms()
+        self._known_chroms = None  # type: set
 
     def __call__(self, chrom: str, pos: int, ref: str, alt: str) -> ty.Union[int, None]:
         """
@@ -38,7 +38,7 @@ class SnpToRsid:
         Each record is an integer key (position), and a msgpack object of { refalt_str: rsid_int } entries
         This deserialization adds some overhead but also seems to reduce total file size on the (large) lmdb file
         """
-        if chrom not in self._known_chroms:
+        if chrom not in self.known_chroms:
             return None
 
         if chrom not in self.db_handles:
@@ -57,14 +57,14 @@ class SnpToRsid:
                 res = 'rs{}'.format(res)
         return res
 
+    @property
     def known_chroms(self) -> set:
-        if self._known_chroms is not None:
-            return self._known_chroms
-
-        with self.env.begin() as txn:
-            # In this particular data structure, all child databases are listed as keys in the default DB
-            cursor = txn.cursor()
-            return {k.decode('utf-8') for k, v in cursor}
+        if self._known_chroms is None:
+            with self.env.begin() as txn:
+                # In this particular data structure, all child databases are listed as keys in the default DB
+                cursor = txn.cursor()
+                self._known_chroms = {k.decode('utf-8') for k, v in cursor}
+        return self._known_chroms
 
     def __del__(self):
         # Ensure the database environment is closed when the reader is no longer needed
