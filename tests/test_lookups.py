@@ -36,8 +36,12 @@ class TestSnpToRsid:
         res = rsid_testdata('1', 10051, 'A', 'AC')
         assert res == 'rs1326880612'
 
+    def test_handles_unknown_chromspec(self, rsid_testdata):
+        res = rsid_testdata('nope1', 10051, 'A', 'G')
+        assert res is None
+
     def test_helper_lists_all_known_chroms(self, rsid_testdata):
-        known = rsid_testdata.known_chroms()
+        known = sorted(rsid_testdata.known_chroms())
         assert known == sorted([  # The full set used to build the test data
             '1', '10',
             '11', '12', '13', '14', '15', '16', '17', '18', '19',
