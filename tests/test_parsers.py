@@ -219,6 +219,18 @@ class TestUtils:
         with pytest.raises(exceptions.LineParseException, match='marker format'):
             parser_utils.parse_marker(val, test=False)
 
+    def test_parse_marker_handles_various_formats(self):
+        scenarios = [
+            ["chr1:100_A/C", ("1", "100", "A", "C")],
+            ["1:100:A:C", ("1", "100", "A", "C")],
+            ["chr1:100", ("1", "100", None, None)],
+            ["1-100-A-C", ("1", "100", "A", "C")],
+            ["1-100-A-C_AVOCADO", ("1", "100", "A", "C")],
+        ]
+        for input, expected in scenarios:
+            result = parser_utils.parse_marker(input)
+            assert result == expected, "Parsed {}".format(input)
+
     def test_pval_to_log_sidesteps_python_underflow(self):
         val = '1.93e-780'
         res = parser_utils.parse_pval_to_log(val, is_neg_log=False)
