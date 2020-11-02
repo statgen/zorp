@@ -1,6 +1,6 @@
 # ZORP: A helpful GWAS parser
 
-![Build Status](https://github.com/abought/zorp/workflows/Python%20unit%20tests/badge.svg)
+![Build Status](https://github.com/abought/zorp/workflows/Python%20unit%20tests/badge.svg?branch=develop)
 
 ## Why?
 ZORP is intended to abstract away differences in file formats, and help you work with GWAS data from many 
