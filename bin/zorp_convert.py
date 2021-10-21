@@ -60,7 +60,7 @@ def main(source: ty.Union[str, ty.Iterable],
          skip_rows=None,
          skip_errors=True,
          max_errors=100,
-         make_tabix: bool = False) -> str:
+         make_tabix: bool = False):
     try:
         parser = parsers.GenericGwasLineParser(**parser_options)
     except exceptions.ConfigurationException:
@@ -81,11 +81,10 @@ def main(source: ty.Union[str, ty.Iterable],
         dest_fn = reader.write(out_fn, make_tabix=make_tabix) or 'console'
     except exceptions.TooManyBadLinesException:
         logger.error('ERROR: Too many lines failed to parse; stopping.')
-    except Exception:
+    except Exception as e:
         logger.exception('Conversion failed due to unknown error')
     else:
         logger.info('Conversion succeeded! Results written to: {}'.format(dest_fn))
-        return dest_fn
     finally:
         for n, reason, _ in reader.errors:
             logger.error('Excluded row {} from output due to parse error: {}'.format(n, reason))
