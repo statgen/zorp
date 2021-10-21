@@ -202,21 +202,21 @@ class TestGenericSniffer:
 
     def test_can_guess_gwas_catalog_mostly(self):
         data = _fixture_to_strings([
-            ['chromosome', 'base_pair_location', 'effect_allele', 'other_allele', 'odds_ratio', 'ci_lower', 'ci_upper', 'standard_error', 'p_value'],
+            ['chromosome', 'base_pair_location', 'effect_allele', 'other_allele', 'odds_ratio', 'ci_lower', 'ci_upper', 'standard_error', 'p_value'], # noqa
             ['1', '1108138', 'A', 'G', '1.081', '0.8822', '1.325', '0.1038', '0.4517']
         ])
         actual = sniffers.guess_gwas_generic(data)
 
         assert h(actual._parser._chrom_col) == 1, 'Found index of chr col'
         assert h(actual._parser._pos_col) == 2, 'Found index of pos col'
-        # The EBI GWAS catalog uses "effect" and "non_effect". The meaning of this varies from one analysis to another. A user will have to decide how to handle the reference genome for themselves.
-        assert actual._parser._ref_col is None, 'Did NOT identify ref col, b/c GWAS catalog uses ambiguous "effect" semantics'
-        assert actual._parser._alt_col is None, 'Did NOT identify alt col, b/c GWAS catalog uses ambiguous "effect" semantics'
+        # The EBI GWAS catalog uses "effect" and "non_effect". The meaning of this varies from one analysis to another.
+        #   A user will have to decide how to handle the reference genome for themselves.
+        assert actual._parser._ref_col is None, 'Did NOT identify ref col, b/c GWAS catalog uses ambiguous "effect"'
+        assert actual._parser._alt_col is None, 'Did NOT identify alt col, b/c GWAS catalog uses ambiguous "effect"'
 
         assert h(actual._parser._stderr_col) == 8, 'stderr_beta field detected'
         assert h(actual._parser._pvalue_col) == 9, 'Found index of pval col'
         assert actual._parser._is_neg_log_pvalue is False, 'Determined whether is log'
-
 
     def test_can_guess_bolt_lmm(self):
         data = _fixture_to_strings([

@@ -81,7 +81,7 @@ def main(source: ty.Union[str, ty.Iterable],
         dest_fn = reader.write(out_fn, make_tabix=make_tabix) or 'console'
     except exceptions.TooManyBadLinesException:
         logger.error('ERROR: Too many lines failed to parse; stopping.')
-    except Exception as e:
+    except Exception:
         logger.exception('Conversion failed due to unknown error')
     else:
         logger.info('Conversion succeeded! Results written to: {}'.format(dest_fn))
