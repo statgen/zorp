@@ -93,7 +93,7 @@ def get_pval_column(header_names: list, data_rows: ty.Iterable, overrides: dict 
     overrides = overrides or {}
 
     LOGPVALUE_FIELDS = ('neg_log_pvalue', 'log_pvalue', 'log_pval', 'logpvalue')
-    PVALUE_FIELDS = ('pvalue', 'p.value', 'p-value', 'pval', 'p_score', 'p')
+    PVALUE_FIELDS = ('pvalue', 'p.value', 'p-value', 'pval', 'p_score', 'p', 'p_value')
 
     data = itertools.islice(data_rows, 100)
 
@@ -135,12 +135,11 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable, ov
 
     # Get from either a marker, or 4 separate columns
     MARKER_FIELDS = ('snpid', 'marker', 'markerid', 'snpmarker', 'chr:position')
-    CHR_FIELDS = ('chrom', 'chr')
-    POS_FIELDS = ('position', 'pos', 'begin', 'beg', 'bp', 'end', 'ps')
+    CHR_FIELDS = ('chrom', 'chr', 'chromosome')
+    POS_FIELDS = ('position', 'pos', 'begin', 'beg', 'bp', 'end', 'ps', 'base_pair_location')
 
     data = itertools.islice(data_rows, 100)
 
-    # TODO: How to handle orienting ref vs effect?
     # Order matters: consider ambiguous field names for ref before alt
     REF_FIELDS = ('A1', 'ref', 'reference', 'allele0', 'allele1')
     ALT_FIELDS = ('A2', 'alt', 'alternate', 'allele1', 'allele2')
@@ -155,21 +154,21 @@ def get_chrom_pos_ref_alt_columns(header_names: list, data_rows: ty.Iterable, ov
     #  be found for this function to report a match.
     headers_marked = header_names.copy()
     to_find = [
-        ['chrom_col', CHR_FIELDS],
-        ['pos_col', POS_FIELDS],
-        ['ref_col', REF_FIELDS],
-        ['alt_col', ALT_FIELDS],
+        ['chrom_col', CHR_FIELDS, True],
+        ['pos_col', POS_FIELDS, True],
+        ['ref_col', REF_FIELDS, False],
+        ['alt_col', ALT_FIELDS, False],
     ]
     config = {}
-    for col_name, col_choices in to_find:
+    for col_name, col_choices, is_required in to_find:
         col = utils.human_to_zero(overrides.get(col_name)) or \
               find_column(col_choices, headers_marked, threshold=1)  # type: ignore
-        if col is None:
+        if col is None and is_required:
             return {}
-
-        config[col_name] = col + 1
-        # Once a column has been assigned, remove it from consideration for future matches
-        headers_marked[col] = None
+        if col is not None:
+            config[col_name] = col + 1
+            # Once a column has been assigned, remove it from consideration for future matches
+            headers_marked[col] = None
 
     return config
 
@@ -178,7 +177,7 @@ def get_effect_size_columns(header_names: list, data_rows: ty.Iterable, override
     overrides = overrides or {}
 
     BETA_FIELDS = ('beta', 'effect_size', 'alt_effsize', 'effect')
-    STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'sebeta', 'effect_size_sd', 'se')
+    STDERR_BETA_FIELDS = ('stderr_beta', 'stderr', 'sebeta', 'effect_size_sd', 'se', 'standard_error')
 
     data = itertools.islice(data_rows, 100)
 
@@ -333,10 +332,11 @@ def guess_gwas_standard(filename: ty.Union[ty.Iterable, str], *,
     column_config = {}
 
     required_cols = [
-        ['chrom', 'chrom_col'], ['pos', 'pos_col'], ['ref', 'ref_col'], ['alt', 'alt_col'],
+        ['chrom', 'chrom_col'], ['pos', 'pos_col'],
         ['neg_log_pvalue', 'pvalue_col']
     ]
     optional_cols = [
+        ['ref', 'ref_col'], ['alt', 'alt_col'],
         ['beta', 'beta_col'], ['stderr_beta', 'stderr_beta_col'],
         ['alt_allele_freq', 'allele_freq_col'],
         ['rsid', 'rsid_col']
