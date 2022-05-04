@@ -119,3 +119,10 @@ def human_to_zero(value):
         return value
     else:
         return value - 1
+
+
+def natural_sort(l):
+    """Nastural sort a list of strings. Used for human-friendly error messages, eg, from a `set` of allowed strings"""
+    convert = lambda text: int(text) if text.isdigit() else text.lower()
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(l, key=alphanum_key)
