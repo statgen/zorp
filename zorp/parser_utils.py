@@ -123,6 +123,6 @@ def human_to_zero(value):
 
 def natural_sort(items: ty.Iterable):
     """Natural sort a list of strings. Used for human-friendly error messages, eg, from a `set` of allowed strings"""
-    convert = lambda text: int(text) if text.isdigit() else text.lower()
-    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    convert = lambda text: int(text) if text.isdigit() else text.lower()  # noqa: E731
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]  # noqa: E731
     return sorted(items, key=alphanum_key)
