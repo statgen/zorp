@@ -164,11 +164,19 @@ class TestGenericGwasParser:
         # Regression test for a badly specified user input file: restrict chromosomes to a whitelist, because sometimes
         #   people manage to slip non-categorical fields to tabix (and then tabix eats all the RAM on the server)
         line = '1\tchr1:722408:G:C\t722408\tc\tg\t0.9298\tchr1:722408'
-        parser_options = {"alt_col": 5, "pos_col": 3, "ref_col": 4, "beta_col": None, "chrom_col": 2, "pvalue_col": 6, "stderr_beta_col": None, "is_neg_log_pvalue": None}
+        parser_options = {
+            "alt_col": 5, "pos_col": 3, "ref_col": 4, "beta_col": None, "chrom_col": 2, "pvalue_col": 6,
+            "stderr_beta_col": None, "is_neg_log_pvalue": None
+        }
 
         parser = parsers.GenericGwasLineParser(**parser_options)
-        with pytest.raises(exceptions.LineParseException, match="Chromosome 1:722408:G:C is not a valid option. Must be one of: '1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 M MT X Y'"):
+        with pytest.raises(
+                exceptions.LineParseException,
+                match="Chromosome 1:722408:G:C is not a valid option. Must be one of: '1 2 3 4 5 6 7 8 9 10 11 12 13 "
+                      "14 15 16 17 18 19 20 21 22 23 24 25 M MT X Y'"
+        ):
             parser(line)
+
 
 class TestStandardGwasParser:
     def test_parses_locuszoom_standard_format(self, standard_gwas_parser):
