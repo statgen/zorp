@@ -16,7 +16,11 @@ from . import exceptions, parser_utils as utils
 # Whitelist of allowed chromosomes. It's ok to add more values, as long as we have some kind of whitelist.
 #  The generic parser uses these as a safeguard, because when people slip a non-categorical value into the chrom field,
 #  tabix uses all the RAM on the system and then crashes horribly.
-ALLOWED_CHROMS = frozenset({'1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', 'X', 'Y', 'M', 'MT'})
+ALLOWED_CHROMS = frozenset({
+    '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20',
+    '21', '22', '23', '24', '25',
+    'X', 'Y', 'M', 'MT'
+})
 
 
 class BasicVariant:
@@ -168,7 +172,6 @@ def GenericGwasLineParser(
             if chrom not in ALLOWED_CHROMS:
                 options = ' '.join(utils.natural_sort(ALLOWED_CHROMS))
                 raise exceptions.LineParseException(
-                    # NOTE: Future python versions might preserve set insertion order, but until then super-fast membership lookups mean that the set isn't ordered by default
                     f"Chromosome {chrom} is not a valid option. Must be one of: '{options}'")
 
             # Explicit columns will override a value from the marker, by design
