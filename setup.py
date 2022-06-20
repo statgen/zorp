@@ -145,7 +145,7 @@ setup(
     # projects.
     extras_require={  # Optional
         'test': ['coverage', 'pytest', 'pytest-flake8', 'pytest-mypy'],
-        'perf': ['fastnumbers==2.2.1'],
+        'perf': ['fastnumbers==3.2.1'],
         'lookups': ['lmdb', 'msgpack==1.0.0']
     },
     # To provide executable scripts, use entry points in preference to the
