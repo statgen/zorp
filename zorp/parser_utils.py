@@ -47,7 +47,7 @@ def parse_pval_to_log(value: str, is_neg_log: bool = False) -> ty.Union[builtins
             # h/t @welchr: aggressively turn the underflowing string value into -log10 via regex
             # Only do this if absolutely necessary, because it is a performance hit
             base, _, exponent = REGEX_PVAL.search(value).groups()
-            base = float(base)  # type: ignore
+            base = float(base)
 
             if exponent != '':
                 exp = float(exponent)
