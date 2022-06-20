@@ -2,6 +2,7 @@
 Utility functions for common parsing or validation operations
 """
 
+import builtins
 import math
 import re
 import typing as ty
@@ -19,7 +20,7 @@ REGEX_MARKER = re.compile(r'^(?:chr)?([a-zA-Z0-9]+?)[_:-](\d+)[_:|-]?(\w+)?[/_:|
 REGEX_PVAL = re.compile(r'([\d.\-]+)([\sxeE]*)([0-9\-]*)')
 
 
-def parse_pval_to_log(value: str, is_neg_log: bool = False) -> ty.Union[float, None]:
+def parse_pval_to_log(value: str, is_neg_log: bool = False) -> ty.Union[builtins.float, None]:
     """
     Parse a given number, and return the -log10 pvalue
     """
@@ -46,7 +47,7 @@ def parse_pval_to_log(value: str, is_neg_log: bool = False) -> ty.Union[float, N
             # h/t @welchr: aggressively turn the underflowing string value into -log10 via regex
             # Only do this if absolutely necessary, because it is a performance hit
             base, _, exponent = REGEX_PVAL.search(value).groups()
-            base = float(base)
+            base = float(base)  # type: ignore
 
             if exponent != '':
                 exp = float(exponent)
@@ -78,7 +79,7 @@ def parse_allele_frequency(*,
                            freq: str = None,
                            allele_count: str = None,
                            n_samples: str = None,
-                           is_alt_effect: bool = True) -> ty.Union[float, None]:
+                           is_alt_effect: bool = True) -> ty.Union[builtins.float, None]:
     """
     Parse an allele frequency, OR convert counts to frequency.
     :param freq:

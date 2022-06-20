@@ -14,6 +14,7 @@ The final database format (one database per chromosome) is:
 
 {  pos:  { 'ref/alt1': 1 , 'ref/alt2': 2 }  (where rs1 and rs2 are represented as integers, "1" and "2")
 """
+import builtins
 import gzip
 import itertools
 import os
@@ -78,7 +79,9 @@ def make_chrom_to_contigs(tabix_file: pysam.TabixFile) -> dict:
     }
 
 
-def fetch_regions_sequentially(source_fn: str, sample_regions: ty.Tuple[str, int, int]) -> ty.Iterator[str]:
+def fetch_regions_sequentially(
+        source_fn: str, sample_regions: ty.Iterable[ty.Tuple[str, builtins.int, builtins.int]]
+) -> ty.Iterator[str]:
     """Instead of loading an entire gzip file, create an iterator over a set of regions"""
     source = pysam.TabixFile(source_fn)
     human_chrom_to_tabix = make_chrom_to_contigs(source)
@@ -91,7 +94,7 @@ def fetch_regions_sequentially(source_fn: str, sample_regions: ty.Tuple[str, int
             yield line
 
 
-def line_parser(row) -> ty.Tuple[str, int, str, str, int]:
+def line_parser(row) -> ty.Tuple[str, builtins.int, str, str, builtins.int]:
     """For new dbSNP format, builds 152+"""
     fields = row.split()
     # the new dbSNP format uses refseq ids + version; convert these to human-readable chromosome names
@@ -107,7 +110,7 @@ def line_parser(row) -> ty.Tuple[str, int, str, str, int]:
     return (chrom, pos, ref, alt, rsid)
 
 
-def make_file_iterator(handle: ty.Iterable) -> ty.Iterator[ty.Tuple[str, int, str, str, int]]:
+def make_file_iterator(handle: ty.Iterable) -> ty.Iterator[ty.Tuple[str, builtins.int, str, str, builtins.int]]:
     """
     Parse the set of lines for some iterator (eg over contents of an open text, gz, etc file), and only give back the
         ones relevant to our chrom/pos/ref/alt use case
@@ -124,7 +127,7 @@ def make_file_iterator(handle: ty.Iterable) -> ty.Iterator[ty.Tuple[str, int, st
         yield line_parser(row)
 
 
-def make_group_iterator(file_iterator) -> ty.Iterable[ty.Tuple[str, int, dict]]:
+def make_group_iterator(file_iterator) -> ty.Iterable[ty.Tuple[str, builtins.int, dict]]:
     """Create an iterator that returns all possible ref/alt : rsid pairs for that position"""
 
     chrom = None

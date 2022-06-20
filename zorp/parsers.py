@@ -1,8 +1,8 @@
 """
 Parsers: handle the act of reading one entity (such as line)
 """
+import builtins
 import math
-import numbers
 import typing as ty
 
 try:
@@ -24,21 +24,21 @@ class BasicVariant:
 
     def __init__(self, chrom, pos, rsid, ref, alt, neg_log_pvalue, beta, stderr_beta, alt_allele_freq):
         self.chrom = chrom  # type: str
-        self.pos = pos  # type: int
+        self.pos = pos  # type: builtins.int
         self.rsid = rsid  # type: str
         self.ref = ref  # type: str
         self.alt = alt  # type: str
-        self.neg_log_pvalue = neg_log_pvalue  # type: float
+        self.neg_log_pvalue = neg_log_pvalue  # type: builtins.float
 
         # # Optional fields for future expansion
         # af: float
-        self.beta = beta  # type: float
-        self.stderr_beta = stderr_beta  # type: float
+        self.beta = beta  # type: builtins.float
+        self.stderr_beta = stderr_beta  # type: builtins.float
 
         self.alt_allele_freq = alt_allele_freq
 
     @property
-    def pvalue(self) -> ty.Union[float, None]:
+    def pvalue(self) -> ty.Union[builtins.float, None]:
         if self.neg_log_pvalue is None:
             return None
         elif math.isinf(self.neg_log_pvalue):
@@ -48,12 +48,12 @@ class BasicVariant:
             return 10 ** -self.neg_log_pvalue
 
     @property
-    def pval(self) -> numbers.Number:
+    def pval(self) -> builtins.float:
         """A common field name alias"""
         return self.pvalue
 
     @property
-    def maf(self) -> ty.Union[numbers.Number, None]:
+    def maf(self) -> ty.Union[builtins.float, None]:
         af = self.alt_allele_freq
         return min(af, 1 - af) if af is not None else None
 
@@ -91,21 +91,21 @@ def GenericGwasLineParser(
         delimiter: str = '\t',
         container: ty.Callable[..., BasicVariant] = BasicVariant,
         # Variant identifiers: marker OR individual
-        chrom_col: int = None, chr_col: int = None,  # Legacy alias
-        pos_col: int = None,
-        ref_col: int = None,
-        alt_col: int = None,
-        marker_col: int = None,
+        chrom_col: builtins.int = None, chr_col: builtins.int = None,  # Legacy alias
+        pos_col: builtins.int = None,
+        ref_col: builtins.int = None,
+        alt_col: builtins.int = None,
+        marker_col: builtins.int = None,
         # Other required data
-        pvalue_col: int = None, pval_col: int = None,  # Legacy alias
+        pvalue_col: builtins.int = None, pval_col: builtins.int = None,  # Legacy alias
         # Optional fields
-        rsid_col: int = None,
-        beta_col: int = None,
-        stderr_beta_col: int = None,
+        rsid_col: builtins.int = None,
+        beta_col: builtins.int = None,
+        stderr_beta_col: builtins.int = None,
 
-        allele_freq_col: int = None,  # As freq OR by two count fields
-        allele_count_col: int = None,
-        n_samples_col: int = None,
+        allele_freq_col: builtins.int = None,  # As freq OR by two count fields
+        allele_count_col: builtins.int = None,
+        n_samples_col: builtins.int = None,
         # Other configuration options that apply to every row as constants
         is_neg_log_pvalue: bool = False, is_log_pval: bool = False,  # Legacy alias
         is_alt_effect: bool = True,  # whether effect allele is oriented towards alt
@@ -201,11 +201,11 @@ def GenericGwasLineParser(
             log_pval = utils.parse_pval_to_log(pval, is_neg_log=_is_neg_log_pvalue)
 
             try:
-                pos = int(pos)
+                pos = int(pos)  # type: ignore
             except ValueError:
                 # Some programs seem to write long positions using scientific notation, which int cannot handle
                 try:
-                    pos = int(float(pos))
+                    pos = int(float(pos))  # type: ignore
                 except ValueError:
                     # If we still can't parse, it's probably bad data
                     raise exceptions.LineParseException(
