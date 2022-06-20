@@ -43,7 +43,7 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='0.3.6',  # Required
+    version='0.3.7',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
@@ -145,7 +145,7 @@ setup(
     # projects.
     extras_require={  # Optional
         'test': ['coverage', 'pytest', 'pytest-flake8', 'pytest-mypy'],
-        'perf': ['fastnumbers==2.2.1'],
+        'perf': ['fastnumbers==3.2.1'],
         'lookups': ['lmdb', 'msgpack==1.0.0']
     },
     # To provide executable scripts, use entry points in preference to the
