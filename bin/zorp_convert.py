@@ -65,6 +65,9 @@ def main(source: ty.Union[str, ty.Iterable],
         parser = parsers.GenericGwasLineParser(**parser_options)
     except exceptions.ConfigurationException:
         parser = None
+    finally:
+        # Sniffer does not allow exact parser AND partial options to be specified. Once one is created, null the other.
+        parser_options = None
 
     if source is None:
         source = sys.stdin
