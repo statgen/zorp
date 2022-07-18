@@ -223,9 +223,12 @@ class TestUtils:
         scenarios = [
             ["chr1:100_A/C", ("1", "100", "A", "C")],
             ["1:100:A:C", ("1", "100", "A", "C")],
+            ["chr1:100:AAAA:C", ("1", "100", "AAAA", "C")],
+            ["1:100:A:CCCC", ("1", "100", "A", "CCCC")],
             ["chr1:100", ("1", "100", None, None)],
             ["1-100-A-C", ("1", "100", "A", "C")],
             ["1-100-A-C_AVOCADO", ("1", "100", "A", "C")],
+            ["1_100_A_C", ("1", "100", "A", "C")]
         ]
         for input, expected in scenarios:
             result = parser_utils.parse_marker(input)
