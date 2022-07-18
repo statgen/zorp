@@ -155,7 +155,7 @@ setup(
 
     entry_points={
         'console_scripts': [
-            'zorp-convert=bin.zorp_convert:run_cli',
+            'zorp-convert=zorp.bin.zorp_convert:run_cli',
             'zorp-assets=zorp.assets:main'
         ],
     },
